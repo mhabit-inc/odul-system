@@ -15,7 +15,7 @@ type ShopifyOrder = {
 
 async function shopifyFetch(endpoint: string): Promise<unknown> {
   const res = await fetch(
-    `https://${SHOPIFY_STORE}/admin/api/2024-01/${endpoint}`,
+    `https://${SHOPIFY_STORE}/admin/api/2026-04/${endpoint}`,
     {
       headers: {
         "X-Shopify-Access-Token": SHOPIFY_TOKEN,
