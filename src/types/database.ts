@@ -23,6 +23,7 @@ export type Product = {
   elle_product_code: string | null;
   image_url: string | null;
   spreadsheet_row: number | null;
+  current_stock: number;
   synced_at: string | null;
   created_at: string;
   updated_at: string;
