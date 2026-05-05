@@ -41,7 +41,8 @@ export async function fetchProductMaster(): Promise<SheetRow[]> {
       const obj: SheetRow = {};
       headers.forEach((header: string, i: number) => {
         if (header?.trim()) {
-          obj[header.trim()] = row[i]?.trim() || "";
+          const cleanHeader = header.replace(/\n/g, "").trim();
+          obj[cleanHeader] = row[i]?.trim() || "";
         }
       });
       return obj;

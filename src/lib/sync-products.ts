@@ -2,25 +2,21 @@ import { createAdminClient } from "./supabase";
 import { fetchProductMaster } from "./google-sheets";
 
 // スプレッドシートの列名 → DBカラムのマッピング
-// 実際のスプレッドシートのヘッダー名に合わせて調整が必要
+// ヘッダーに改行が含まれるため、改行を除去した名前で照合する
 const COLUMN_MAP: Record<string, string> = {
   SKU: "sku",
-  商品名: "name",
   "商品名(英語)": "name_en",
-  カテゴリー: "category",
+  コレクション: "collection_name",
+  hear: "category",
   地金素材: "material",
-  地金カラー: "color",
+  地材カラー: "color",
   "石の種類①": "stone_1",
   "石の種類②": "stone_2",
   "石の種類③": "stone_3",
-  "制作原価(INR)": "cost_price_inr",
-  為替: "exchange_rate",
-  "制作原価(円)": "cost_price_jpy",
   "販売価格(税込)": "selling_price",
-  サイズ: "size_options",
   発売開始日: "launched_at",
-  コレクション: "collection",
-  写真URL: "image_url",
+  "写真URL": "image_url",
+  "サイズ(リング)": "size_options",
 };
 
 type SyncResult = {
@@ -43,6 +39,8 @@ export async function syncProducts(): Promise<SyncResult> {
     errors: [],
   };
 
+  const productsToUpsert: Record<string, unknown>[] = [];
+
   for (const row of rows) {
     const sku = row["SKU"]?.trim();
     if (!sku) {
@@ -51,6 +49,7 @@ export async function syncProducts(): Promise<SyncResult> {
     }
 
     const product: Record<string, unknown> = {
+      sku,
       synced_at: new Date().toISOString(),
     };
 
@@ -59,58 +58,51 @@ export async function syncProducts(): Promise<SyncResult> {
       if (value === undefined || value === "") continue;
 
       switch (dbCol) {
-        case "cost_price_inr":
-        case "exchange_rate":
-        case "cost_price_jpy":
         case "selling_price":
-          product[dbCol] = parseFloat(value.replace(/[,¥₹]/g, "")) || null;
+          product[dbCol] = parseFloat(value.replace(/[,¥₹]/g, "")) || 0;
           break;
         case "launched_at":
           product[dbCol] = parseDate(value);
+          break;
+        case "sku":
           break;
         default:
           product[dbCol] = value;
       }
     }
 
-    if (!product["name"] || !product["selling_price"]) {
-      result.skipped++;
-      continue;
+    // name_enをnameとして使う
+    product["name"] = product["name_en"] || product["collection_name"] || sku;
+    if (product["name_en"]) product["name_en"] = product["name_en"];
+    delete product["collection_name"];
+
+    if (!product["selling_price"]) {
+      product["selling_price"] = 0;
     }
 
     if (!product["category"]) {
       product["category"] = "その他";
     }
 
-    const { data: existing } = await supabase
+    productsToUpsert.push(product);
+  }
+
+  // バッチでupsert（100件ずつ）
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < productsToUpsert.length; i += BATCH_SIZE) {
+    const batch = productsToUpsert.slice(i, i + BATCH_SIZE);
+    const { error, count } = await supabase
       .from("products")
-      .select("id")
-      .eq("sku", sku)
-      .single();
+      .upsert(batch, { onConflict: "sku" });
 
-    if (existing) {
-      const { error } = await supabase
-        .from("products")
-        .update(product)
-        .eq("sku", sku);
-
-      if (error) {
-        result.errors.push(`UPDATE ${sku}: ${error.message}`);
-      } else {
-        result.updated++;
-      }
+    if (error) {
+      result.errors.push(`Batch ${i / BATCH_SIZE}: ${error.message}`);
     } else {
-      const { error } = await supabase
-        .from("products")
-        .insert({ ...product, sku });
-
-      if (error) {
-        result.errors.push(`INSERT ${sku}: ${error.message}`);
-      } else {
-        result.inserted++;
-      }
+      result.inserted += batch.length;
     }
   }
+
+  result.skipped = result.total - productsToUpsert.length;
 
   return result;
 }
@@ -118,7 +110,6 @@ export async function syncProducts(): Promise<SyncResult> {
 function parseDate(value: string): string | null {
   if (!value) return null;
 
-  // "2026/1/15" or "2026-01-15" format
   const match = value.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
   if (match) {
     const [, y, m, d] = match;
