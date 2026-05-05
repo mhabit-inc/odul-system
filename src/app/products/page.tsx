@@ -76,6 +76,9 @@ export default async function ProductsPage({
     { value: "all", label: "すべて" },
     { value: "定番", label: "定番" },
     { value: "セミ定番", label: "セミ定番" },
+    { value: "新作", label: "新作" },
+    { value: "アーカイブ", label: "アーカイブ" },
+    { value: "ノベルティ", label: "ノベルティ" },
     { value: "未分類", label: "未分類" },
   ];
 
@@ -212,6 +215,10 @@ function ClassBadge({ value }: { value: string }) {
   const config: Record<string, string> = {
     "定番": "bg-blue-50 text-blue-700",
     "セミ定番": "bg-purple-50 text-purple-700",
+    "新作": "bg-orange-50 text-orange-700",
+    "アーカイブ": "bg-gray-200 text-gray-600",
+    "ノベルティ": "bg-pink-50 text-pink-700",
+    "ラッピング": "bg-gray-100 text-gray-400",
     "未分類": "bg-gray-100 text-gray-500",
   };
   return (

@@ -27,11 +27,11 @@ type ShopifyProduct = {
 
 async function fetchAllShopifyProducts(): Promise<ShopifyProduct[]> {
   const all: ShopifyProduct[] = [];
-  let url: string | null =
+  let nextUrl: string | null =
     `https://${SHOPIFY_STORE}/admin/api/2026-04/products.json?limit=250&fields=id,vendor,variants`;
 
-  while (url) {
-    const res = await fetch(url, {
+  while (nextUrl) {
+    const res: Response = await fetch(nextUrl, {
       headers: {
         "X-Shopify-Access-Token": SHOPIFY_TOKEN,
         "Content-Type": "application/json",
@@ -44,7 +44,7 @@ async function fetchAllShopifyProducts(): Promise<ShopifyProduct[]> {
 
     const linkHeader = res.headers.get("link");
     const match = linkHeader?.match(/<([^>]+)>;\s*rel="next"/);
-    url = match ? match[1] : null;
+    nextUrl = match ? match[1] : null;
   }
 
   return all;

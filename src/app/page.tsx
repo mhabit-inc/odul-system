@@ -40,21 +40,22 @@ async function getPendingClassifications() {
 }
 
 async function getProductStats() {
-  const { count: total } = await supabase
+  const { data } = await supabase
     .from("products")
-    .select("id", { count: "exact", head: true });
+    .select("product_class");
 
-  const { count: staple } = await supabase
-    .from("products")
-    .select("id", { count: "exact", head: true })
-    .eq("product_class", "定番");
+  const classes = data ?? [];
+  const count = (cls: string) => classes.filter((p) => p.product_class === cls).length;
 
-  const { count: semiStaple } = await supabase
-    .from("products")
-    .select("id", { count: "exact", head: true })
-    .eq("product_class", "セミ定番");
-
-  return { total: total ?? 0, staple: staple ?? 0, semiStaple: semiStaple ?? 0 };
+  return {
+    total: classes.length,
+    staple: count("定番"),
+    semiStaple: count("セミ定番"),
+    newItem: count("新作"),
+    archive: count("アーカイブ"),
+    novelty: count("ノベルティ"),
+    unclassified: count("未分類"),
+  };
 }
 
 export default async function Dashboard() {
@@ -81,15 +82,13 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard label="全商品数" value={stats.total} />
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
         <StatCard label="定番" value={stats.staple} color="blue" />
         <StatCard label="セミ定番" value={stats.semiStaple} color="purple" />
-        <StatCard
-          label="未分類"
-          value={stats.total - stats.staple - stats.semiStaple}
-          color="gray"
-        />
+        <StatCard label="新作" value={stats.newItem} color="orange" />
+        <StatCard label="アーカイブ" value={stats.archive} color="gray" />
+        <StatCard label="ノベルティ" value={stats.novelty} color="pink" />
+        <StatCard label="未分類" value={stats.unclassified} color="gray" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
@@ -180,6 +179,8 @@ function StatCard({ label, value, color = "gray" }: { label: string; value: numb
   const colorMap: Record<string, string> = {
     blue: "text-blue-600",
     purple: "text-purple-600",
+    orange: "text-orange-600",
+    pink: "text-pink-600",
     gray: "text-gray-600",
   };
   return (
