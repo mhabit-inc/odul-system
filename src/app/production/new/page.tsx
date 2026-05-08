@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Product = {
   id: string;
@@ -21,13 +21,15 @@ type Supplier = {
 
 export default function NewOrderPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedProductId = searchParams.get("product_id") || "";
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    product_id: "",
+    product_id: preselectedProductId,
     supplier_id: "",
     quantity: "",
     unit_cost: "",
@@ -44,6 +46,16 @@ export default function NewOrderPage() {
       const productList = Array.isArray(p) ? p : p.products || [];
       setProducts(productList);
       setSuppliers(Array.isArray(s) ? s : []);
+      if (preselectedProductId) {
+        const product = productList.find((pr: Product) => pr.id === preselectedProductId);
+        if (product?.supplier_id) {
+          setForm((prev) => ({
+            ...prev,
+            supplier_id: product.supplier_id || "",
+            unit_cost: product.cost_price_inr ? String(product.cost_price_inr) : "",
+          }));
+        }
+      }
       setLoading(false);
     });
   }, []);

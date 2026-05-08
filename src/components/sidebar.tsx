@@ -18,6 +18,7 @@ const navItems = [
   { href: "/analytics", label: "分析", icon: "◆" },
   { href: "/schedule", label: "年間スケジュール", icon: "▣" },
   { href: "/events", label: "イベント管理", icon: "★" },
+  { href: "/suppliers", label: "仕入先マスタ", icon: "⇄" },
   { href: "/planning-categories", label: "企画分類マスタ", icon: "⚙" },
 ];
 

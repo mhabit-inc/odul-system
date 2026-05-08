@@ -91,6 +91,12 @@ export default async function ProductsPage({
           <h1 className="text-2xl font-bold text-gray-900">商品マスタ</h1>
           <p className="text-sm text-gray-500">{total.toLocaleString()}件</p>
         </div>
+        <a
+          href="/api/products/export-csv"
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+        >
+          CSV出力
+        </a>
       </div>
 
       <div className="flex gap-3 mb-4">

@@ -72,6 +72,7 @@ export default async function ReorderAlertsPage({
                 <th className="px-4 py-3 font-medium text-right">月販数</th>
                 <th className="px-4 py-3 font-medium text-right">残月数</th>
                 <th className="px-4 py-3 font-medium text-right">推奨発注数</th>
+                <th className="px-4 py-3 font-medium text-center">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -104,6 +105,14 @@ export default async function ReorderAlertsPage({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium">{alert.recommended_quantity}</td>
+                    <td className="px-4 py-3 text-center">
+                      <Link
+                        href={`/production/new?product_id=${product.id}`}
+                        className="px-2 py-1 bg-gray-900 text-white rounded text-xs hover:bg-gray-800"
+                      >
+                        発注する
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}
