@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { orderStatusNotification } from "@/lib/slack";
 import { NextResponse } from "next/server";
 
 const STATUS_FLOW = [
@@ -60,6 +61,23 @@ export async function PATCH(
     changed_by: body.changed_by || "system",
     comment: body.comment || null,
   });
+
+  const { data: orderDetail } = await supabase
+    .from("orders")
+    .select("products(name, name_en, sku)")
+    .eq("id", id)
+    .single();
+
+  const prod = (orderDetail as Record<string, unknown>)?.products as Record<string, string> | null;
+  if (prod) {
+    orderStatusNotification(
+      prod.name || prod.name_en || "不明",
+      prod.sku || "",
+      order.status,
+      newStatus,
+      body.changed_by || "system"
+    ).catch(() => {});
+  }
 
   return NextResponse.json(data);
 }

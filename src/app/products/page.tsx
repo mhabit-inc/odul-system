@@ -156,10 +156,12 @@ export default async function ProductsPage({
               {products.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{p.name || p.name_en || "-"}</div>
-                    {p.collection_name && (
-                      <div className="text-xs text-gray-400">{p.collection_name}</div>
-                    )}
+                    <Link href={`/products/${p.id}`} className="block">
+                      <div className="font-medium text-gray-900 hover:text-blue-600">{p.name || p.name_en || "-"}</div>
+                      {p.collection_name && (
+                        <div className="text-xs text-gray-400">{p.collection_name}</div>
+                      )}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.sku}</td>
                   <td className="px-4 py-3 text-gray-500">{p.category || "-"}</td>
