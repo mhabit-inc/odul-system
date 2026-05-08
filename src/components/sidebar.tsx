@@ -14,6 +14,7 @@ const navItems = [
   { href: "/plans", label: "新作発注計画", icon: "☆" },
   { href: "/order-sheet", label: "発注シート出力", icon: "↓" },
   { href: "/seasons", label: "シーズン管理", icon: "◎" },
+  { href: "/analytics", label: "分析", icon: "◆" },
   { href: "/schedule", label: "年間スケジュール", icon: "▣" },
   { href: "/events", label: "イベント管理", icon: "★" },
   { href: "/planning-categories", label: "企画分類マスタ", icon: "⚙" },
