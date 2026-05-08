@@ -16,6 +16,7 @@ const navItems = [
   { href: "/seasons", label: "シーズン管理", icon: "◎" },
   { href: "/inventory", label: "在庫管理", icon: "▤" },
   { href: "/analytics", label: "分析", icon: "◆" },
+  { href: "/import", label: "データインポート", icon: "↑" },
   { href: "/schedule", label: "年間スケジュール", icon: "▣" },
   { href: "/events", label: "イベント管理", icon: "★" },
   { href: "/suppliers", label: "仕入先マスタ", icon: "⇄" },
