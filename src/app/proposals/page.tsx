@@ -253,6 +253,13 @@ export default function ProposalsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <a
+                    href={`/api/proposals/${p.id}/pdf`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-2 py-1 border border-gray-200 rounded text-xs text-gray-500 hover:bg-gray-100"
+                  >
+                    PDF
+                  </a>
                   <select
                     value={p.status}
                     onClick={(e) => e.stopPropagation()}
