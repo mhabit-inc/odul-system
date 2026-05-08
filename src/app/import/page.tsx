@@ -11,7 +11,7 @@ type ImportResult = {
 };
 
 export default function ImportPage() {
-  const [type, setType] = useState<"sales" | "ad_costs">("sales");
+  const [type, setType] = useState<"sales" | "ad_costs" | "elle">("sales");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -26,7 +26,8 @@ export default function ImportPage() {
     formData.append("file", file);
     formData.append("type", type);
 
-    const res = await fetch("/api/import", { method: "POST", body: formData });
+    const endpoint = type === "elle" ? "/api/sales/import-elle" : "/api/import";
+    const res = await fetch(endpoint, { method: "POST", body: formData });
     const data = await res.json();
     setResult(data);
     setUploading(false);
@@ -63,6 +64,14 @@ export default function ImportPage() {
             >
               広告費データ
             </button>
+            <button
+              onClick={() => { setType("elle"); reset(); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                type === "elle" ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600"
+              }`}
+            >
+              ELLE CSV
+            </button>
           </div>
         </div>
 
@@ -84,7 +93,12 @@ export default function ImportPage() {
           <h3 className="text-sm font-medium text-gray-700 mb-2">
             {type === "sales" ? "売上CSV" : "広告費CSV"}の必須列
           </h3>
-          {type === "sales" ? (
+          {type === "elle" ? (
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>ELLEから受領した注文CSVをそのままアップロードしてください。</p>
+              <p>商品コード（ELLE SKU）をもとに自動マッチングされます。</p>
+            </div>
+          ) : type === "sales" ? (
             <div className="text-xs text-gray-500 space-y-1">
               <p><span className="font-mono bg-gray-200 px-1 rounded">sku</span> または <span className="font-mono bg-gray-200 px-1 rounded">商品コード</span> — 商品SKU（必須）</p>
               <p><span className="font-mono bg-gray-200 px-1 rounded">quantity</span> または <span className="font-mono bg-gray-200 px-1 rounded">数量</span> — 販売数量（必須）</p>
