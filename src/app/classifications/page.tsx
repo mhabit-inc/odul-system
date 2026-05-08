@@ -29,6 +29,8 @@ export default function ClassificationsPage() {
   const [data, setData] = useState<ClassificationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [classifying, setClassifying] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchProcessing, setBatchProcessing] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -57,6 +59,53 @@ export default function ClassificationsPage() {
     });
     await fetchData();
     setClassifying(null);
+  }
+
+  async function batchClassify(classType: string, stage: string) {
+    if (selected.size === 0) return;
+    setBatchProcessing(true);
+    for (const productId of selected) {
+      await fetch("/api/classifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: productId,
+          class_type: classType,
+          stage,
+          reason: "一括分類",
+          classified_by: "user",
+        }),
+      });
+    }
+    setSelected(new Set());
+    await fetchData();
+    setBatchProcessing(false);
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll(items: PendingProduct[]) {
+    const allSelected = items.every((p) => selected.has(p.id));
+    if (allSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        items.forEach((p) => next.delete(p.id));
+        return next;
+      });
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        items.forEach((p) => next.add(p.id));
+        return next;
+      });
+    }
   }
 
   if (loading) {
@@ -89,11 +138,50 @@ export default function ClassificationsPage() {
         />
       </div>
 
+      {selected.size > 0 && (
+        <div className="bg-gray-900 text-white rounded-xl p-3 mb-4 flex items-center justify-between">
+          <span className="text-sm">{selected.size}件を選択中</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => batchClassify("定番", "preliminary")}
+              disabled={batchProcessing}
+              className="px-3 py-1 rounded text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
+            >
+              一括 → 定番
+            </button>
+            <button
+              onClick={() => batchClassify("セミ定番", "preliminary")}
+              disabled={batchProcessing}
+              className="px-3 py-1 rounded text-xs font-medium bg-purple-500 hover:bg-purple-600 disabled:opacity-50"
+            >
+              一括 → セミ定番
+            </button>
+            <button
+              onClick={() => batchClassify("アーカイブ", "confirmed")}
+              disabled={batchProcessing}
+              className="px-3 py-1 rounded text-xs font-medium bg-gray-500 hover:bg-gray-600 disabled:opacity-50"
+            >
+              一括 → アーカイブ
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="px-3 py-1 rounded text-xs text-gray-300 hover:text-white"
+            >
+              解除
+            </button>
+          </div>
+        </div>
+      )}
+
       <Section title="仮分類待ち（発売7日経過）" badge={data.pending_preliminary.length}>
         {data.pending_preliminary.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="px-2 py-3 w-8">
+                  <input type="checkbox" onChange={() => toggleAll(data.pending_preliminary)}
+                    checked={data.pending_preliminary.length > 0 && data.pending_preliminary.every((p) => selected.has(p.id))} className="rounded" />
+                </th>
                 <th className="px-4 py-3 font-medium">商品名</th>
                 <th className="px-4 py-3 font-medium">SKU</th>
                 <th className="px-4 py-3 font-medium">カテゴリー</th>
@@ -104,6 +192,9 @@ export default function ClassificationsPage() {
             <tbody>
               {data.pending_preliminary.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="px-2 py-3">
+                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
+                  </td>
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {p.name || p.name_en || "-"}
                   </td>
@@ -132,6 +223,10 @@ export default function ClassificationsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="px-2 py-3 w-8">
+                  <input type="checkbox" onChange={() => toggleAll(data.pending_confirmed)}
+                    checked={data.pending_confirmed.length > 0 && data.pending_confirmed.every((p) => selected.has(p.id))} className="rounded" />
+                </th>
                 <th className="px-4 py-3 font-medium">商品名</th>
                 <th className="px-4 py-3 font-medium">SKU</th>
                 <th className="px-4 py-3 font-medium">カテゴリー</th>
@@ -143,6 +238,9 @@ export default function ClassificationsPage() {
             <tbody>
               {data.pending_confirmed.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="px-2 py-3">
+                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
+                  </td>
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {p.name || p.name_en || "-"}
                   </td>
@@ -234,6 +332,13 @@ function ClassifyButtons({
         className="px-3 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50"
       >
         セミ定番
+      </button>
+      <button
+        onClick={() => onClassify(productId, "アーカイブ", stage)}
+        disabled={isLoading}
+        className="px-3 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+      >
+        アーカイブ
       </button>
     </div>
   );

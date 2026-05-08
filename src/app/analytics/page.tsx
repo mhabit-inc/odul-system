@@ -27,10 +27,28 @@ type DashboardData = {
   }>;
 };
 
+type RankingItem = {
+  productId: string;
+  name: string;
+  sku: string;
+  category: string;
+  productClass: string;
+  revenue: number;
+  quantity: number;
+  grossProfit: number;
+  grossMargin: number;
+  currentStock: number;
+  avgPrice: number;
+};
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [months, setMonths] = useState(3);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"overview" | "ranking">("overview");
+  const [ranking, setRanking] = useState<RankingItem[]>([]);
+  const [rankSort, setRankSort] = useState("revenue");
+  const [rankLoading, setRankLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -41,6 +59,18 @@ export default function AnalyticsPage() {
         setLoading(false);
       });
   }, [months]);
+
+  useEffect(() => {
+    if (tab === "ranking") {
+      setRankLoading(true);
+      fetch(`/api/analytics/ranking?months=${months}&sort=${rankSort}`)
+        .then((r) => r.json())
+        .then((d) => {
+          setRanking(Array.isArray(d) ? d : []);
+          setRankLoading(false);
+        });
+    }
+  }, [tab, months, rankSort]);
 
   if (loading || !data) {
     return (
@@ -63,7 +93,22 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-bold text-gray-900">分析ダッシュボード</h1>
           <p className="text-sm text-gray-500">売上・在庫・アラートの統合分析</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setTab("overview")}
+              className={`px-3 py-1.5 text-sm ${tab === "overview" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+            >
+              概要
+            </button>
+            <button
+              onClick={() => setTab("ranking")}
+              className={`px-3 py-1.5 text-sm ${tab === "ranking" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+            >
+              ランキング
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
           {[1, 3, 6, 12].map((m) => (
             <button
               key={m}
@@ -77,9 +122,93 @@ export default function AnalyticsPage() {
               {m}ヶ月
             </button>
           ))}
+          </div>
         </div>
       </div>
 
+      {tab === "ranking" ? (
+        <div>
+          <div className="flex gap-2 mb-4">
+            {[
+              { value: "revenue", label: "売上順" },
+              { value: "quantity", label: "販売数順" },
+              { value: "profit", label: "粗利順" },
+            ].map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setRankSort(s.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm ${
+                  rankSort === s.value
+                    ? "bg-gray-900 text-white"
+                    : "bg-white border border-gray-200 text-gray-600"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {rankLoading ? (
+            <p className="text-gray-500">読み込み中...</p>
+          ) : ranking.length > 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b bg-gray-50">
+                    <th className="px-4 py-3 font-medium w-8">#</th>
+                    <th className="px-4 py-3 font-medium">商品名</th>
+                    <th className="px-4 py-3 font-medium">SKU</th>
+                    <th className="px-4 py-3 font-medium">分類</th>
+                    <th className="px-4 py-3 font-medium text-right">売上</th>
+                    <th className="px-4 py-3 font-medium text-right">販売数</th>
+                    <th className="px-4 py-3 font-medium text-right">粗利</th>
+                    <th className="px-4 py-3 font-medium text-right">粗利率</th>
+                    <th className="px-4 py-3 font-medium text-right">在庫</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranking.map((r, i) => (
+                    <tr key={r.productId} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-400 font-medium">{i + 1}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
+                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{r.sku}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          r.productClass === "定番" ? "bg-blue-50 text-blue-700" :
+                          r.productClass === "セミ定番" ? "bg-purple-50 text-purple-700" :
+                          r.productClass === "新作" ? "bg-orange-50 text-orange-700" :
+                          "bg-gray-100 text-gray-500"
+                        }`}>{r.productClass}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">¥{r.revenue.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">{r.quantity}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={r.grossProfit < 0 ? "text-red-600" : "text-gray-900"}>
+                          ¥{r.grossProfit.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={r.grossMargin < 30 ? "text-red-600" : r.grossMargin > 60 ? "text-green-600" : "text-gray-600"}>
+                          {r.grossMargin.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={r.currentStock === 0 ? "text-red-600" : "text-gray-600"}>
+                          {r.currentStock}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <p className="text-gray-500">売上データがありません</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       <div className="grid grid-cols-6 gap-3 mb-6">
         <KpiCard
           label="売上"
@@ -191,6 +320,8 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
