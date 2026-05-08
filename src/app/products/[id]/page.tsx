@@ -79,15 +79,48 @@ export default function ProductDetailPage({
   const { id } = use(params);
   const [data, setData] = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Product>>({});
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const fetchData = () => {
     fetch(`/api/products/${id}`)
       .then((r) => r.json())
       .then((d) => {
         setData(d);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [id]);
+
+  const startEdit = () => {
+    if (!data) return;
+    setEditForm({
+      name: data.product.name,
+      name_en: data.product.name_en,
+      category: data.product.category,
+      material: data.product.material,
+      collection_name: data.product.collection_name,
+      selling_price: data.product.selling_price,
+      cost_price_jpy: data.product.cost_price_jpy,
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    await fetch(`/api/products/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editForm),
+    });
+    setEditing(false);
+    setSaving(false);
+    fetchData();
+  };
 
   if (loading || !data) {
     return (
@@ -125,21 +158,119 @@ export default function ProductDetailPage({
           </h1>
           <p className="text-sm text-gray-500 font-mono mt-1">{p.sku}</p>
         </div>
-        <ClassBadge value={p.product_class} />
+        <div className="flex items-center gap-2">
+          <ClassBadge value={p.product_class} />
+          {!editing && (
+            <button
+              onClick={startEdit}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+            >
+              編集
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
-        <InfoCard label="販売価格" value={p.selling_price ? `¥${Number(p.selling_price).toLocaleString()}` : "-"} />
-        <InfoCard label="原価(JPY)" value={p.cost_price_jpy ? `¥${Number(p.cost_price_jpy).toLocaleString()}` : "-"} />
-        <InfoCard label="粗利率" value={grossMargin ? `${grossMargin}%` : "-"} />
-        <InfoCard label="現在庫" value={`${p.current_stock ?? 0}個`} highlight={p.current_stock <= 0} />
-      </div>
+      {editing ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">商品情報を編集</h3>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="text-xs text-gray-500">商品名</label>
+              <input
+                type="text"
+                value={editForm.name || ""}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">商品名(英語)</label>
+              <input
+                type="text"
+                value={editForm.name_en || ""}
+                onChange={(e) => setEditForm({ ...editForm, name_en: e.target.value })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">カテゴリー</label>
+              <input
+                type="text"
+                value={editForm.category || ""}
+                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">素材</label>
+              <input
+                type="text"
+                value={editForm.material || ""}
+                onChange={(e) => setEditForm({ ...editForm, material: e.target.value })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">コレクション</label>
+              <input
+                type="text"
+                value={editForm.collection_name || ""}
+                onChange={(e) => setEditForm({ ...editForm, collection_name: e.target.value })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">販売価格</label>
+              <input
+                type="number"
+                value={editForm.selling_price || ""}
+                onChange={(e) => setEditForm({ ...editForm, selling_price: Number(e.target.value) })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">原価(JPY)</label>
+              <input
+                type="number"
+                value={editForm.cost_price_jpy || ""}
+                onChange={(e) => setEditForm({ ...editForm, cost_price_jpy: Number(e.target.value) })}
+                className="w-full px-3 py-1.5 border rounded-lg text-sm mt-1"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={saveEdit}
+              disabled={saving}
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
+            >
+              {saving ? "保存中..." : "保存"}
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            <InfoCard label="販売価格" value={p.selling_price ? `¥${Number(p.selling_price).toLocaleString()}` : "-"} />
+            <InfoCard label="原価(JPY)" value={p.cost_price_jpy ? `¥${Number(p.cost_price_jpy).toLocaleString()}` : "-"} />
+            <InfoCard label="粗利率" value={grossMargin ? `${grossMargin}%` : "-"} />
+            <InfoCard label="現在庫" value={`${p.current_stock ?? 0}個`} highlight={p.current_stock <= 0} />
+          </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <InfoCard label="カテゴリー" value={p.category || "-"} />
-        <InfoCard label="素材" value={p.material || "-"} />
-        <InfoCard label="コレクション" value={p.collection_name || "-"} />
-      </div>
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <InfoCard label="カテゴリー" value={p.category || "-"} />
+            <InfoCard label="素材" value={p.material || "-"} />
+            <InfoCard label="コレクション" value={p.collection_name || "-"} />
+          </div>
+        </>
+      )}
 
       <div className="grid grid-cols-3 gap-3 mb-6">
         <InfoCard label="Vendor" value={p.vendor || "-"} />

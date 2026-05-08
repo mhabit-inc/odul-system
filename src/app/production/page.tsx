@@ -173,9 +173,9 @@ export default function ProductionPage() {
                         key={order.id}
                         className={`rounded-lg border p-3 ${STATUS_COLORS[status]}`}
                       >
-                        <div className="font-medium text-sm text-gray-900 mb-1">
+                        <Link href={`/production/${order.id}`} className="font-medium text-sm text-gray-900 mb-1 block hover:text-blue-600">
                           {order.products.name || order.products.name_en}
-                        </div>
+                        </Link>
                         <div className="text-xs text-gray-500 mb-1">
                           {order.suppliers.name}
                         </div>

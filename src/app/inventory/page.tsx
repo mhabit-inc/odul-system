@@ -15,6 +15,17 @@ type Product = {
   cost_price_jpy: number;
 };
 
+type Transaction = {
+  id: string;
+  product_id: string;
+  type: string;
+  quantity: number;
+  reason: string;
+  created_by: string;
+  created_at: string;
+  products: { name: string; name_en: string; sku: string } | null;
+};
+
 type Summary = {
   totalProducts: number;
   totalStock: number;
@@ -31,6 +42,9 @@ export default function InventoryPage() {
   const [adjusting, setAdjusting] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustReason, setAdjustReason] = useState("");
+  const [tab, setTab] = useState<"stock" | "history">("stock");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
 
   const fetchData = (filter?: string) => {
     setLoading(true);
@@ -48,6 +62,18 @@ export default function InventoryPage() {
   useEffect(() => {
     fetchData(stockFilter);
   }, [stockFilter]);
+
+  useEffect(() => {
+    if (tab === "history" && transactions.length === 0) {
+      setTxLoading(true);
+      fetch("/api/inventory/transactions")
+        .then((r) => r.json())
+        .then((d) => {
+          setTransactions(Array.isArray(d) ? d : []);
+          setTxLoading(false);
+        });
+    }
+  }, [tab]);
 
   const handleAdjust = async (productId: string) => {
     if (adjustQty === 0) return;
@@ -111,8 +137,22 @@ export default function InventoryPage() {
       )}
 
       <div className="flex gap-2 mb-4">
-        {[
-          { value: "", label: "すべて" },
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden mr-4">
+          <button
+            onClick={() => setTab("stock")}
+            className={`px-3 py-1.5 text-sm ${tab === "stock" ? "bg-gray-900 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+          >
+            在庫一覧
+          </button>
+          <button
+            onClick={() => setTab("history")}
+            className={`px-3 py-1.5 text-sm ${tab === "history" ? "bg-gray-900 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+          >
+            取引履歴
+          </button>
+        </div>
+        {tab === "stock" && [{
+          value: "", label: "すべて" },
           { value: "zero", label: "在庫切れ" },
           { value: "low", label: "在庫少" },
         ].map((f) => (
@@ -130,106 +170,162 @@ export default function InventoryPage() {
         ))}
       </div>
 
-      {loading ? (
+      {tab === "stock" ? (
+        loading ? (
+          <p className="text-gray-500">読み込み中...</p>
+        ) : products.length > 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                  <th className="px-4 py-3 font-medium">商品名</th>
+                  <th className="px-4 py-3 font-medium">SKU</th>
+                  <th className="px-4 py-3 font-medium">カテゴリー</th>
+                  <th className="px-4 py-3 font-medium text-right">在庫数</th>
+                  <th className="px-4 py-3 font-medium text-right">在庫金額</th>
+                  <th className="px-4 py-3 font-medium text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p) => {
+                  const stockValue =
+                    (p.current_stock || 0) *
+                    Number(p.cost_price_jpy || p.selling_price || 0);
+                  return (
+                    <tr
+                      key={p.id}
+                      className="border-b border-gray-50 hover:bg-gray-50"
+                    >
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/products/${p.id}`}
+                          className="font-medium text-gray-900 hover:text-blue-600"
+                        >
+                          {p.name || p.name_en || "-"}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">
+                        {p.sku}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {p.category || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={`font-medium ${
+                            (p.current_stock || 0) === 0
+                              ? "text-red-600"
+                              : (p.current_stock || 0) <= 5
+                                ? "text-yellow-600"
+                                : "text-gray-900"
+                          }`}
+                        >
+                          {p.current_stock ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600">
+                        ¥{stockValue.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {adjusting === p.id ? (
+                          <div className="flex items-center gap-2 justify-center">
+                            <input
+                              type="number"
+                              value={adjustQty}
+                              onChange={(e) =>
+                                setAdjustQty(parseInt(e.target.value) || 0)
+                              }
+                              className="w-16 px-2 py-1 border rounded text-xs text-center"
+                              placeholder="±数量"
+                            />
+                            <input
+                              type="text"
+                              value={adjustReason}
+                              onChange={(e) => setAdjustReason(e.target.value)}
+                              className="w-24 px-2 py-1 border rounded text-xs"
+                              placeholder="理由"
+                            />
+                            <button
+                              onClick={() => handleAdjust(p.id)}
+                              className="px-2 py-1 bg-gray-900 text-white rounded text-xs"
+                            >
+                              確定
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAdjusting(null);
+                                setAdjustQty(0);
+                                setAdjustReason("");
+                              }}
+                              className="px-2 py-1 border rounded text-xs text-gray-500"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setAdjusting(p.id)}
+                            className="px-3 py-1 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50"
+                          >
+                            調整
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+            <p className="text-gray-500">該当する商品がありません</p>
+          </div>
+        )
+      ) : txLoading ? (
         <p className="text-gray-500">読み込み中...</p>
-      ) : products.length > 0 ? (
+      ) : transactions.length > 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">
-                <th className="px-4 py-3 font-medium">商品名</th>
-                <th className="px-4 py-3 font-medium">SKU</th>
-                <th className="px-4 py-3 font-medium">カテゴリー</th>
-                <th className="px-4 py-3 font-medium text-right">在庫数</th>
-                <th className="px-4 py-3 font-medium text-right">在庫金額</th>
-                <th className="px-4 py-3 font-medium text-center">操作</th>
+                <th className="px-4 py-3 font-medium">日時</th>
+                <th className="px-4 py-3 font-medium">商品</th>
+                <th className="px-4 py-3 font-medium">種別</th>
+                <th className="px-4 py-3 font-medium text-right">数量</th>
+                <th className="px-4 py-3 font-medium">理由</th>
+                <th className="px-4 py-3 font-medium">実行者</th>
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => {
-                const stockValue =
-                  (p.current_stock || 0) *
-                  Number(p.cost_price_jpy || p.selling_price || 0);
+              {transactions.map((tx) => {
+                const typeLabels: Record<string, { label: string; color: string }> = {
+                  inspection_good: { label: "検品入庫", color: "text-green-600" },
+                  adjustment_in: { label: "手動入庫", color: "text-blue-600" },
+                  adjustment_out: { label: "手動出庫", color: "text-red-600" },
+                  sale: { label: "販売", color: "text-gray-600" },
+                };
+                const typeInfo = typeLabels[tx.type] || { label: tx.type, color: "text-gray-600" };
                 return (
-                  <tr
-                    key={p.id}
-                    className="border-b border-gray-50 hover:bg-gray-50"
-                  >
+                  <tr key={tx.id} className="border-b border-gray-50">
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(tx.created_at).toLocaleString("ja-JP")}
+                    </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/products/${p.id}`}
-                        className="font-medium text-gray-900 hover:text-blue-600"
-                      >
-                        {p.name || p.name_en || "-"}
-                      </Link>
+                      {tx.products ? (
+                        <Link href={`/products/${tx.product_id}`} className="text-gray-900 hover:text-blue-600">
+                          {tx.products.name || tx.products.name_en}
+                        </Link>
+                      ) : "-"}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">
-                      {p.sku}
+                    <td className={`px-4 py-3 text-xs font-medium ${typeInfo.color}`}>
+                      {typeInfo.label}
                     </td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {p.category || "-"}
+                    <td className="px-4 py-3 text-right font-medium">
+                      {tx.type.includes("out") || tx.type === "sale" ? `-${tx.quantity}` : `+${tx.quantity}`}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <span
-                        className={`font-medium ${
-                          (p.current_stock || 0) === 0
-                            ? "text-red-600"
-                            : (p.current_stock || 0) <= 5
-                              ? "text-yellow-600"
-                              : "text-gray-900"
-                        }`}
-                      >
-                        {p.current_stock ?? 0}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600">
-                      ¥{stockValue.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {adjusting === p.id ? (
-                        <div className="flex items-center gap-2 justify-center">
-                          <input
-                            type="number"
-                            value={adjustQty}
-                            onChange={(e) =>
-                              setAdjustQty(parseInt(e.target.value) || 0)
-                            }
-                            className="w-16 px-2 py-1 border rounded text-xs text-center"
-                            placeholder="±数量"
-                          />
-                          <input
-                            type="text"
-                            value={adjustReason}
-                            onChange={(e) => setAdjustReason(e.target.value)}
-                            className="w-24 px-2 py-1 border rounded text-xs"
-                            placeholder="理由"
-                          />
-                          <button
-                            onClick={() => handleAdjust(p.id)}
-                            className="px-2 py-1 bg-gray-900 text-white rounded text-xs"
-                          >
-                            確定
-                          </button>
-                          <button
-                            onClick={() => {
-                              setAdjusting(null);
-                              setAdjustQty(0);
-                              setAdjustReason("");
-                            }}
-                            className="px-2 py-1 border rounded text-xs text-gray-500"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setAdjusting(p.id)}
-                          className="px-3 py-1 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50"
-                        >
-                          調整
-                        </button>
-                      )}
-                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{tx.reason || "-"}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{tx.created_by || "-"}</td>
                   </tr>
                 );
               })}
@@ -238,7 +334,7 @@ export default function InventoryPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <p className="text-gray-500">該当する商品がありません</p>
+          <p className="text-gray-500">取引履歴がありません</p>
         </div>
       )}
     </div>
