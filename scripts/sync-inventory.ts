@@ -17,7 +17,7 @@ async function main() {
     `https://${SHOPIFY_STORE}/admin/api/2026-04/products.json?limit=250&fields=id,variants`;
 
   while (nextUrl) {
-    const res = await fetch(nextUrl, {
+    const res: Response = await fetch(nextUrl, {
       headers: { "X-Shopify-Access-Token": SHOPIFY_TOKEN },
     });
     const data = (await res.json()) as { products: Product[] };

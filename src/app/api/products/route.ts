@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
   const productClass = searchParams.get("class");
   const category = searchParams.get("category");
   const search = searchParams.get("search");
+  const supplierId = searchParams.get("supplier_id");
+  const seasonId = searchParams.get("season_id");
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "50");
   const offset = (page - 1) * limit;
@@ -24,6 +26,12 @@ export async function GET(request: NextRequest) {
   }
   if (search) {
     query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+  }
+  if (supplierId) {
+    query = query.eq("supplier_id", supplierId);
+  }
+  if (seasonId) {
+    query = query.eq("season_id", seasonId);
   }
 
   const { data, error, count } = await query;
