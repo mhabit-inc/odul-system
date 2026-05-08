@@ -58,12 +58,63 @@ async function getProductStats() {
   };
 }
 
+async function getOrderStatus() {
+  const { data } = await supabase
+    .from("orders")
+    .select("status, expected_delivery")
+    .in("status", ["発注準備", "発注済", "製造中", "出荷済", "入荷済"]);
+
+  const orders = data ?? [];
+  const now = new Date();
+  const overdue = orders.filter(
+    (o) => o.expected_delivery && new Date(o.expected_delivery) < now && o.status !== "入荷済"
+  ).length;
+
+  const byStatus: Record<string, number> = {};
+  for (const o of orders) {
+    byStatus[o.status] = (byStatus[o.status] || 0) + 1;
+  }
+
+  return { byStatus, total: orders.length, overdue };
+}
+
+async function getStockSummary() {
+  const { data } = await supabase
+    .from("products")
+    .select("current_stock, cost_price_jpy, selling_price");
+
+  const products = data ?? [];
+  const totalStock = products.reduce((s, p) => s + (p.current_stock || 0), 0);
+  const zeroStock = products.filter((p) => (p.current_stock || 0) === 0).length;
+  const totalValue = products.reduce(
+    (s, p) => s + (p.current_stock || 0) * Number(p.cost_price_jpy || p.selling_price || 0),
+    0
+  );
+
+  return { totalStock, zeroStock, totalValue };
+}
+
+async function getUpcomingEvents() {
+  const now = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .gte("end_date", now)
+    .order("start_date")
+    .limit(3);
+
+  return data ?? [];
+}
+
 export default async function Dashboard() {
-  const [alertSummary, criticalAlerts, pending, stats] = await Promise.all([
+  const [alertSummary, criticalAlerts, pending, stats, orderStatus, stockSummary, upcomingEvents] = await Promise.all([
     getAlertSummary(),
     getCriticalAlerts(),
     getPendingClassifications(),
     getProductStats(),
+    getOrderStatus(),
+    getStockSummary(),
+    getUpcomingEvents(),
   ]);
 
   return (
@@ -143,33 +194,141 @@ export default async function Dashboard() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            分類待ち商品
-            {pending.total > 0 && (
-              <span className="ml-2 text-sm font-normal text-orange-600">{pending.total}件</span>
-            )}
-          </h2>
-          <Link href="/classifications" className="text-sm text-blue-600 hover:text-blue-800">
-            分類管理 →
-          </Link>
-        </div>
-        {pending.items.length > 0 ? (
-          <div className="space-y-2">
-            {pending.items.map((p) => (
-              <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50">
-                <div>
-                  <span className="text-sm font-medium text-gray-900">{p.name}</span>
-                  <span className="ml-2 text-xs text-gray-500">{p.sku}</span>
-                </div>
-                <span className="text-xs text-gray-500">発売: {p.launched_at}</span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">発注状況</h2>
+            <Link href="/production" className="text-sm text-blue-600 hover:text-blue-800">
+              生産管理 →
+            </Link>
           </div>
-        ) : (
-          <p className="text-gray-500 text-sm">分類待ちの商品はありません。</p>
-        )}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{orderStatus.total}</p>
+              <p className="text-xs text-gray-500">進行中</p>
+            </div>
+            <div className="text-center">
+              <p className={`text-2xl font-bold ${orderStatus.overdue > 0 ? "text-red-600" : "text-gray-900"}`}>
+                {orderStatus.overdue}
+              </p>
+              <p className="text-xs text-gray-500">納期超過</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">
+                {orderStatus.byStatus["入荷済"] || 0}
+              </p>
+              <p className="text-xs text-gray-500">入荷待ち検品</p>
+            </div>
+          </div>
+          {Object.entries(orderStatus.byStatus).length > 0 ? (
+            <div className="flex gap-1">
+              {["発注準備", "発注済", "製造中", "出荷済", "入荷済"].map((s) => {
+                const count = orderStatus.byStatus[s] || 0;
+                if (count === 0) return null;
+                const colors: Record<string, string> = {
+                  "発注準備": "bg-gray-200", "発注済": "bg-blue-300",
+                  "製造中": "bg-yellow-300", "出荷済": "bg-purple-300", "入荷済": "bg-green-300",
+                };
+                return (
+                  <div key={s} className="flex-1" title={`${s}: ${count}件`}>
+                    <div className={`h-2 rounded ${colors[s]}`} />
+                    <p className="text-[10px] text-gray-500 mt-1 text-center">{s}({count})</p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">進行中の発注はありません</p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">在庫概況</h2>
+            <Link href="/inventory" className="text-sm text-blue-600 hover:text-blue-800">
+              在庫管理 →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{stockSummary.totalStock.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">総在庫数</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">¥{(stockSummary.totalValue / 10000).toFixed(0)}万</p>
+              <p className="text-xs text-gray-500">在庫金額</p>
+            </div>
+            <div className="text-center">
+              <p className={`text-2xl font-bold ${stockSummary.zeroStock > 0 ? "text-red-600" : "text-gray-900"}`}>
+                {stockSummary.zeroStock}
+              </p>
+              <p className="text-xs text-gray-500">在庫切れ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              分類待ち商品
+              {pending.total > 0 && (
+                <span className="ml-2 text-sm font-normal text-orange-600">{pending.total}件</span>
+              )}
+            </h2>
+            <Link href="/classifications" className="text-sm text-blue-600 hover:text-blue-800">
+              分類管理 →
+            </Link>
+          </div>
+          {pending.items.length > 0 ? (
+            <div className="space-y-2">
+              {pending.items.map((p) => (
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50">
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">{p.name}</span>
+                    <span className="ml-2 text-xs text-gray-500">{p.sku}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">発売: {p.launched_at}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">分類待ちの商品はありません。</p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">直近のイベント</h2>
+            <Link href="/events" className="text-sm text-blue-600 hover:text-blue-800">
+              イベント管理 →
+            </Link>
+          </div>
+          {upcomingEvents.length > 0 ? (
+            <div className="space-y-2">
+              {upcomingEvents.map((e) => {
+                const now = new Date();
+                const start = new Date(e.start_date);
+                const end = new Date(e.end_date);
+                const isActive = now >= start && now <= end;
+                return (
+                  <div key={e.id} className="flex items-center justify-between py-2 border-b border-gray-50">
+                    <div className="flex items-center gap-2">
+                      {isActive && <span className="w-2 h-2 rounded-full bg-green-500" />}
+                      <span className="text-sm font-medium text-gray-900">{e.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {e.start_date} 〜 {e.end_date}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">予定されたイベントはありません。</p>
+          )}
+        </div>
       </div>
     </div>
   );
