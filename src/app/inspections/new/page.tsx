@@ -31,7 +31,7 @@ export default function NewInspectionPage() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    fetch("/api/orders?status=入荷済")
+    fetch("/api/orders?status=国内配送")
       .then((r) => r.json())
       .then((data) => {
         setOrders(Array.isArray(data) ? data : []);
@@ -109,10 +109,10 @@ export default function NewInspectionPage() {
       {orders.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
           <p className="text-gray-500">
-            検品可能な発注（ステータス: 入荷済）がありません。
+            検品可能な発注（ステータス: 国内配送）がありません。
           </p>
           <p className="text-sm text-gray-400 mt-1">
-            生産管理で発注のステータスを「入荷済」にしてください。
+            生産管理で発注のステータスを「国内配送」にしてください。
           </p>
         </div>
       ) : (

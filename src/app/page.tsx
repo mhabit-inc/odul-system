@@ -62,12 +62,12 @@ async function getOrderStatus() {
   const { data } = await supabase
     .from("orders")
     .select("status, expected_delivery")
-    .in("status", ["発注準備", "発注済", "製造中", "出荷済", "入荷済"]);
+    .not("status", "eq", "完了");
 
   const orders = data ?? [];
   const now = new Date();
   const overdue = orders.filter(
-    (o) => o.expected_delivery && new Date(o.expected_delivery) < now && o.status !== "入荷済"
+    (o) => o.expected_delivery && new Date(o.expected_delivery) < now && !["国内配送", "完了"].includes(o.status)
   ).length;
 
   const byStatus: Record<string, number> = {};
@@ -215,19 +215,21 @@ export default async function Dashboard() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-gray-900">
-                {orderStatus.byStatus["入荷済"] || 0}
+                {(orderStatus.byStatus["国内配送"] || 0) + (orderStatus.byStatus["通関"] || 0)}
               </p>
-              <p className="text-xs text-gray-500">入荷待ち検品</p>
+              <p className="text-xs text-gray-500">輸送・通関中</p>
             </div>
           </div>
           {Object.entries(orderStatus.byStatus).length > 0 ? (
             <div className="flex gap-1">
-              {["発注準備", "発注済", "製造中", "出荷済", "入荷済"].map((s) => {
+              {["企画中", "発注準備", "発注済", "素材調達中", "製造中", "仕上げ", "品質検査", "出荷準備", "輸送中", "通関", "国内配送"].map((s) => {
                 const count = orderStatus.byStatus[s] || 0;
                 if (count === 0) return null;
                 const colors: Record<string, string> = {
-                  "発注準備": "bg-gray-200", "発注済": "bg-blue-300",
-                  "製造中": "bg-yellow-300", "出荷済": "bg-purple-300", "入荷済": "bg-green-300",
+                  "企画中": "bg-slate-200", "発注準備": "bg-gray-200", "発注済": "bg-blue-300",
+                  "素材調達中": "bg-cyan-300", "製造中": "bg-yellow-300", "仕上げ": "bg-amber-300",
+                  "品質検査": "bg-orange-300", "出荷準備": "bg-indigo-300",
+                  "輸送中": "bg-purple-300", "通関": "bg-pink-300", "国内配送": "bg-green-300",
                 };
                 return (
                   <div key={s} className="flex-1" title={`${s}: ${count}件`}>

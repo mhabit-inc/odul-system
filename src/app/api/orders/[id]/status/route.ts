@@ -3,12 +3,18 @@ import { orderStatusNotification } from "@/lib/slack";
 import { NextResponse } from "next/server";
 
 const STATUS_FLOW = [
+  "企画中",
   "発注準備",
   "発注済",
+  "素材調達中",
   "製造中",
-  "出荷済",
-  "入荷済",
-  "検品済",
+  "仕上げ",
+  "品質検査",
+  "出荷準備",
+  "輸送中",
+  "通関",
+  "国内配送",
+  "完了",
 ];
 
 export async function PATCH(
@@ -37,7 +43,7 @@ export async function PATCH(
   }
 
   const updateData: Record<string, unknown> = { status: newStatus };
-  if (newStatus === "入荷済" || newStatus === "検品済") {
+  if (newStatus === "国内配送" || newStatus === "完了") {
     if (!(order as Record<string, unknown>).actual_delivery) {
       updateData.actual_delivery = new Date().toISOString().slice(0, 10);
     }

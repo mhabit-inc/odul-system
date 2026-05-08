@@ -28,11 +28,18 @@ export function orderStatusNotification(
   changedBy: string
 ) {
   const emoji: Record<string, string> = {
+    企画中: ":bulb:",
+    発注準備: ":memo:",
     発注済: ":package:",
+    素材調達中: ":gem:",
     製造中: ":factory:",
-    出荷済: ":ship:",
-    入荷済: ":inbox_tray:",
-    検品済: ":white_check_mark:",
+    仕上げ: ":sparkles:",
+    品質検査: ":mag:",
+    出荷準備: ":inbox_tray:",
+    輸送中: ":ship:",
+    通関: ":customs:",
+    国内配送: ":truck:",
+    完了: ":white_check_mark:",
   };
 
   return sendSlackNotification({

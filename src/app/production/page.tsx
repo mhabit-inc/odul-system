@@ -21,21 +21,33 @@ type Order = {
 };
 
 const STATUSES = [
+  "企画中",
   "発注準備",
   "発注済",
+  "素材調達中",
   "製造中",
-  "出荷済",
-  "入荷済",
-  "検品済",
+  "仕上げ",
+  "品質検査",
+  "出荷準備",
+  "輸送中",
+  "通関",
+  "国内配送",
+  "完了",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
+  "企画中": "bg-slate-50 border-slate-200",
   "発注準備": "bg-gray-100 border-gray-300",
   "発注済": "bg-blue-50 border-blue-200",
+  "素材調達中": "bg-cyan-50 border-cyan-200",
   "製造中": "bg-yellow-50 border-yellow-200",
-  "出荷済": "bg-purple-50 border-purple-200",
-  "入荷済": "bg-green-50 border-green-200",
-  "検品済": "bg-emerald-50 border-emerald-200",
+  "仕上げ": "bg-amber-50 border-amber-200",
+  "品質検査": "bg-orange-50 border-orange-200",
+  "出荷準備": "bg-indigo-50 border-indigo-200",
+  "輸送中": "bg-purple-50 border-purple-200",
+  "通関": "bg-pink-50 border-pink-200",
+  "国内配送": "bg-green-50 border-green-200",
+  "完了": "bg-emerald-50 border-emerald-200",
 };
 
 export default function ProductionPage() {
@@ -146,7 +158,7 @@ export default function ProductionPage() {
       {view === "kanban" ? (
         <div className="flex gap-3 overflow-x-auto pb-4">
           {STATUSES.map((status) => (
-            <div key={status} className="flex-shrink-0 w-56">
+            <div key={status} className="flex-shrink-0 w-44">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-sm font-semibold text-gray-700">
                   {status}
@@ -218,7 +230,7 @@ export default function ProductionPage() {
 
 function TimelineView({ orders }: { orders: Order[] }) {
   const activeOrders = orders.filter(
-    (o) => o.status !== "検品済" && o.ordered_at
+    (o) => o.status !== "完了" && o.ordered_at
   );
 
   if (activeOrders.length === 0) {
@@ -290,8 +302,8 @@ function TimelineView({ orders }: { orders: Order[] }) {
         const isOverdue =
           order.expected_delivery &&
           new Date(order.expected_delivery) < today &&
-          order.status !== "入荷済" &&
-          order.status !== "検品済";
+          order.status !== "国内配送" &&
+          order.status !== "完了";
 
         return (
           <div key={order.id} className="relative h-10 border-b border-gray-50">

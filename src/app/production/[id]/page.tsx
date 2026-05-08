@@ -41,7 +41,10 @@ type OrderDetail = {
   }>;
 };
 
-const STATUS_FLOW = ["発注準備", "発注済", "製造中", "出荷済", "入荷済", "検品済"];
+const STATUS_FLOW = [
+  "企画中", "発注準備", "発注済", "素材調達中", "製造中", "仕上げ",
+  "品質検査", "出荷準備", "輸送中", "通関", "国内配送", "完了",
+];
 
 export default function OrderDetailPage({
   params,
@@ -106,7 +109,7 @@ export default function OrderDetailPage({
   const isOverdue =
     o.expected_delivery &&
     new Date(o.expected_delivery) < new Date() &&
-    !["入荷済", "検品済"].includes(o.status);
+    !["国内配送", "完了"].includes(o.status);
 
   return (
     <div className="max-w-4xl">
@@ -126,32 +129,36 @@ export default function OrderDetailPage({
         <StatusBadge status={o.status} large />
       </div>
 
-      <div className="flex items-center gap-1 mb-6">
-        {STATUS_FLOW.map((s, i) => {
-          const isDone = i <= currentIdx;
-          const isCurrent = i === currentIdx;
-          return (
-            <div key={s} className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
-                  isCurrent
-                    ? "bg-gray-900 text-white"
-                    : isDone
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-400"
-                }`}
-              >
-                {isDone && !isCurrent ? "✓" : i + 1}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div className="flex items-center gap-0.5">
+          {STATUS_FLOW.map((s, i) => {
+            const isDone = i <= currentIdx;
+            const isCurrent = i === currentIdx;
+            return (
+              <div key={s} className="flex items-center flex-1 min-w-0">
+                <div className="flex flex-col items-center w-full">
+                  <div
+                    className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-medium ${
+                      isCurrent
+                        ? "bg-gray-900 text-white"
+                        : isDone
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-400"
+                    }`}
+                  >
+                    {isDone && !isCurrent ? "✓" : i + 1}
+                  </div>
+                  <span className={`mt-1 text-[10px] text-center leading-tight ${isCurrent ? "text-gray-900 font-medium" : "text-gray-400"}`}>
+                    {s}
+                  </span>
+                </div>
+                {i < STATUS_FLOW.length - 1 && (
+                  <div className={`w-full h-0.5 -mt-4 ${isDone ? "bg-green-300" : "bg-gray-200"}`} />
+                )}
               </div>
-              <span className={`ml-1 text-xs ${isCurrent ? "text-gray-900 font-medium" : "text-gray-400"}`}>
-                {s}
-              </span>
-              {i < STATUS_FLOW.length - 1 && (
-                <div className={`w-6 h-0.5 mx-1 ${isDone ? "bg-green-300" : "bg-gray-200"}`} />
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {nextStatus && (
@@ -294,12 +301,18 @@ export default function OrderDetailPage({
 
 function StatusBadge({ status, large }: { status: string; large?: boolean }) {
   const config: Record<string, string> = {
+    企画中: "bg-slate-50 text-slate-600",
     発注準備: "bg-gray-100 text-gray-600",
     発注済: "bg-blue-50 text-blue-700",
+    素材調達中: "bg-cyan-50 text-cyan-700",
     製造中: "bg-yellow-50 text-yellow-700",
-    出荷済: "bg-purple-50 text-purple-700",
-    入荷済: "bg-green-50 text-green-700",
-    検品済: "bg-green-100 text-green-800",
+    仕上げ: "bg-amber-50 text-amber-700",
+    品質検査: "bg-orange-50 text-orange-700",
+    出荷準備: "bg-indigo-50 text-indigo-700",
+    輸送中: "bg-purple-50 text-purple-700",
+    通関: "bg-pink-50 text-pink-700",
+    国内配送: "bg-green-50 text-green-700",
+    完了: "bg-green-100 text-green-800",
   };
   return (
     <span

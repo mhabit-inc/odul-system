@@ -531,12 +531,18 @@ function ClassBadge({ value }: { value: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
+    企画中: "bg-slate-50 text-slate-600",
     発注準備: "bg-gray-100 text-gray-600",
     発注済: "bg-blue-50 text-blue-700",
+    素材調達中: "bg-cyan-50 text-cyan-700",
     製造中: "bg-yellow-50 text-yellow-700",
-    出荷済: "bg-purple-50 text-purple-700",
-    入荷済: "bg-green-50 text-green-700",
-    検品済: "bg-green-100 text-green-800",
+    仕上げ: "bg-amber-50 text-amber-700",
+    品質検査: "bg-orange-50 text-orange-700",
+    出荷準備: "bg-indigo-50 text-indigo-700",
+    輸送中: "bg-purple-50 text-purple-700",
+    通関: "bg-pink-50 text-pink-700",
+    国内配送: "bg-green-50 text-green-700",
+    完了: "bg-green-100 text-green-800",
   };
   return (
     <span

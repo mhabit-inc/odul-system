@@ -61,13 +61,13 @@ export async function POST(request: Request) {
 
   await supabase
     .from("orders")
-    .update({ status: "検品済" })
+    .update({ status: "完了" })
     .eq("id", body.order_id);
 
   await supabase.from("order_status_history").insert({
     order_id: body.order_id,
-    from_status: "入荷済",
-    to_status: "検品済",
+    from_status: "国内配送",
+    to_status: "完了",
     changed_by: body.inspected_by || "system",
     comment: `検品完了 良品:${body.good_quantity} 不良:${body.defective_quantity} 未着:${body.missing_quantity}`,
   });
