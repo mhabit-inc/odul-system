@@ -21,6 +21,7 @@ const navItems = [
   { href: "/events", label: "イベント管理", icon: "★" },
   { href: "/suppliers", label: "仕入先マスタ", icon: "⇄" },
   { href: "/planning-categories", label: "企画分類マスタ", icon: "⚙" },
+  { href: "/settings/thresholds", label: "分類閾値設定", icon: "⊞" },
 ];
 
 export function Sidebar() {

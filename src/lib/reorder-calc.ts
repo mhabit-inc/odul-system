@@ -1,8 +1,7 @@
 import { createAdminClient } from "./supabase";
 
-const LEAD_TIME_MONTHS = 3.5;
+const DEFAULT_LEAD_TIME_MONTHS = 3.5;
 const BUFFER_MONTHS = 1.5;
-const TARGET_MONTHS = LEAD_TIME_MONTHS + BUFFER_MONTHS; // 5ヶ月分
 
 type CalcResult = {
   calculated: number;
@@ -25,10 +24,9 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
     errors: [],
   };
 
-  // 定番・セミ定番商品を取得
   const { data: products, error: prodError } = await supabase
     .from("products")
-    .select("id, sku, name, product_class, current_stock, launched_at, selling_price")
+    .select("id, sku, name, product_class, current_stock, launched_at, selling_price, supplier_id")
     .in("product_class", ["定番", "セミ定番"]);
 
   if (prodError) {
@@ -36,11 +34,21 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
     return result;
   }
 
-  if (!products || products.length === 0) {
-    return result;
-  }
+  if (!products || products.length === 0) return result;
 
-  // 現在のイベント係数を取得
+  const { data: suppliers } = await supabase
+    .from("suppliers")
+    .select("id, lead_time_days");
+
+  const supplierLT = new Map(
+    (suppliers || []).map((s) => [s.id, s.lead_time_days / 30])
+  );
+
+  const { data: multipliers } = await supabase
+    .from("restock_multipliers")
+    .select("*")
+    .order("sell_through_min");
+
   const now = new Date().toISOString().split("T")[0];
   const { data: activeEvents } = await supabase
     .from("events")
@@ -53,7 +61,16 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
     1.0
   ) ?? 1.0;
 
-  // 既存アラートを削除して再計算
+  const { data: pendingOrders } = await supabase
+    .from("orders")
+    .select("product_id, quantity, status")
+    .not("status", "eq", "完了");
+
+  const incomingStock: Record<string, number> = {};
+  for (const o of pendingOrders || []) {
+    incomingStock[o.product_id] = (incomingStock[o.product_id] || 0) + o.quantity;
+  }
+
   await supabase.from("reorder_alerts").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
   const alerts: {
@@ -66,48 +83,62 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
     event_coefficient: number;
   }[] = [];
 
+  const twelveWeeksAgo = new Date();
+  twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+
+  const { data: allSales } = await supabase
+    .from("sales")
+    .select("product_id, quantity, sold_at")
+    .gte("sold_at", twelveWeeksAgo.toISOString());
+
+  const salesByProduct: Record<string, Array<{ quantity: number; sold_at: string }>> = {};
+  for (const s of allSales || []) {
+    if (!salesByProduct[s.product_id]) salesByProduct[s.product_id] = [];
+    salesByProduct[s.product_id].push(s);
+  }
+
   for (const product of products) {
-    // 過去12週の売上データを取得
-    const twelveWeeksAgo = new Date();
-    twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
-
-    const { data: salesData } = await supabase
-      .from("sales")
-      .select("quantity, sold_at")
-      .eq("product_id", product.id)
-      .gte("sold_at", twelveWeeksAgo.toISOString());
-
-    const totalSold = salesData?.reduce((sum, s) => sum + s.quantity, 0) ?? 0;
+    const salesData = salesByProduct[product.id] || [];
+    const totalSold = salesData.reduce((sum, s) => sum + s.quantity, 0);
 
     if (totalSold === 0) {
       result.skipped++;
       continue;
     }
 
-    // 売上期間（週数）を計算
-    const oldestSale = salesData?.reduce((oldest, s) => {
-      return s.sold_at < oldest ? s.sold_at : oldest;
-    }, new Date().toISOString());
+    const leadTimeMonths = product.supplier_id && supplierLT.has(product.supplier_id)
+      ? supplierLT.get(product.supplier_id)!
+      : DEFAULT_LEAD_TIME_MONTHS;
 
-    const weeksOfData = Math.max(
-      1,
-      (Date.now() - new Date(oldestSale!).getTime()) / (7 * 24 * 60 * 60 * 1000)
-    );
+    const targetMonths = leadTimeMonths + BUFFER_MONTHS;
 
-    // 月間販売ペース（イベント係数加味）
-    const weeklyRate = totalSold / weeksOfData;
-    const monthlyRate = weeklyRate * 4.33 * eventCoefficient;
+    const weekBuckets: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const s of salesData) {
+      const weeksAgo = Math.floor(
+        (Date.now() - new Date(s.sold_at).getTime()) / (7 * 24 * 60 * 60 * 1000)
+      );
+      const idx = Math.min(11, Math.max(0, weeksAgo));
+      weekBuckets[idx] += s.quantity;
+    }
 
-    // 在庫切れまでの月数
+    const recentWeeks = weekBuckets.slice(0, 4);
+    const olderWeeks = weekBuckets.slice(4, 12);
+    const recentAvg = recentWeeks.reduce((a, b) => a + b, 0) / Math.max(1, recentWeeks.filter((w) => w > 0).length || 1);
+    const olderAvg = olderWeeks.reduce((a, b) => a + b, 0) / Math.max(1, olderWeeks.filter((w) => w > 0).length || 1);
+
+    const weightedWeekly = recentAvg * 0.7 + olderAvg * 0.3;
+    const monthlyRate = weightedWeekly * 4.33 * eventCoefficient;
+
     const currentStock = product.current_stock || 0;
-    const monthsUntilStockout = monthlyRate > 0 ? currentStock / monthlyRate : 999;
+    const incoming = incomingStock[product.id] || 0;
+    const effectiveStock = currentStock + incoming;
+    const monthsUntilStockout = monthlyRate > 0 ? effectiveStock / monthlyRate : 999;
 
-    // アラートレベル判定
     let alertLevel: string;
-    if (monthsUntilStockout <= LEAD_TIME_MONTHS) {
+    if (monthsUntilStockout <= leadTimeMonths) {
       alertLevel = "critical";
       result.critical++;
-    } else if (monthsUntilStockout <= TARGET_MONTHS) {
+    } else if (monthsUntilStockout <= targetMonths) {
       alertLevel = "warning";
       result.warning++;
     } else {
@@ -115,10 +146,32 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
       result.safe++;
     }
 
-    // 推奨発注数（定番: 安全在庫5 + 5ヶ月分 − 現在庫）
-    const safetyStock = 5;
-    const targetStock = safetyStock + monthlyRate * TARGET_MONTHS;
-    const recommended = Math.max(0, Math.ceil(targetStock - currentStock));
+    let restockMultiplier = 1.0;
+    if (product.product_class === "セミ定番" && multipliers && multipliers.length > 0) {
+      const launchedAt = product.launched_at ? new Date(product.launched_at) : null;
+      if (launchedAt) {
+        const daysSinceLaunch = (Date.now() - launchedAt.getTime()) / (24 * 60 * 60 * 1000);
+        const ninetyDaySales = salesData
+          .filter((s) => {
+            const d = new Date(s.sold_at);
+            return d >= launchedAt && d <= new Date(launchedAt.getTime() + 90 * 24 * 60 * 60 * 1000);
+          })
+          .reduce((sum, s) => sum + s.quantity, 0);
+
+        if (daysSinceLaunch >= 90 && totalSold > 0) {
+          const sellThrough = (ninetyDaySales / Math.max(1, currentStock + totalSold)) * 100;
+          const match = multipliers.find(
+            (m) => sellThrough >= Number(m.sell_through_min) && sellThrough < Number(m.sell_through_max)
+          );
+          if (match) restockMultiplier = Number(match.multiplier);
+        }
+      }
+    }
+
+    const safetyStock = Math.max(5, Math.ceil(monthlyRate * 0.5));
+    const targetStock = safetyStock + monthlyRate * targetMonths;
+    const rawRecommended = Math.max(0, Math.ceil((targetStock - effectiveStock) * restockMultiplier));
+    const recommended = Math.ceil(rawRecommended / 5) * 5;
 
     alerts.push({
       product_id: product.id,
@@ -133,7 +186,6 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
     result.calculated++;
   }
 
-  // バッチインサート
   if (alerts.length > 0) {
     const BATCH_SIZE = 100;
     for (let i = 0; i < alerts.length; i += BATCH_SIZE) {

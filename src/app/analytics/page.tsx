@@ -100,7 +100,36 @@ type PLData = {
   }>;
 };
 
-type Tab = "overview" | "ranking" | "roas" | "pl";
+type TurnoverData = {
+  summary: {
+    avgTurnover: number;
+    totalInventoryValue: number;
+    totalCogs: number;
+    productCount: number;
+  };
+  products: Array<{
+    productId: string;
+    name: string;
+    sku: string;
+    category: string;
+    productClass: string;
+    currentStock: number;
+    salesQuantity: number;
+    turnoverRate: number;
+    daysOfSupply: number;
+    inventoryValue: number;
+  }>;
+};
+
+type ForecastData = {
+  historical: Array<{ month: string; revenue: number; quantity: number }>;
+  forecast: Array<{ month: string; revenue: number; quantity: number; isForecast: boolean }>;
+  trend: string;
+  growthRate: number;
+  slope: number;
+};
+
+type Tab = "overview" | "ranking" | "roas" | "pl" | "turnover" | "forecast";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -114,6 +143,10 @@ export default function AnalyticsPage() {
   const [adLoading, setAdLoading] = useState(false);
   const [plData, setPlData] = useState<PLData | null>(null);
   const [plLoading, setPlLoading] = useState(false);
+  const [turnoverData, setTurnoverData] = useState<TurnoverData | null>(null);
+  const [turnoverLoading, setTurnoverLoading] = useState(false);
+  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -150,6 +183,24 @@ export default function AnalyticsPage() {
   }, [tab, months]);
 
   useEffect(() => {
+    if (tab === "turnover") {
+      setTurnoverLoading(true);
+      fetch(`/api/analytics/turnover?months=${months}`)
+        .then((r) => r.json())
+        .then((d) => { setTurnoverData(d); setTurnoverLoading(false); });
+    }
+  }, [tab, months]);
+
+  useEffect(() => {
+    if (tab === "forecast") {
+      setForecastLoading(true);
+      fetch("/api/analytics/forecast")
+        .then((r) => r.json())
+        .then((d) => { setForecastData(d); setForecastLoading(false); });
+    }
+  }, [tab]);
+
+  useEffect(() => {
     if (tab === "pl") {
       setPlLoading(true);
       fetch(`/api/analytics/product-pl?months=${months}`)
@@ -179,7 +230,9 @@ export default function AnalyticsPage() {
     { value: "overview", label: "概要" },
     { value: "ranking", label: "ランキング" },
     { value: "roas", label: "広告ROAS" },
-    { value: "pl", label: "商品別P&L" },
+    { value: "pl", label: "P&L" },
+    { value: "turnover", label: "回転率" },
+    { value: "forecast", label: "予測" },
   ];
 
   return (
@@ -223,6 +276,10 @@ export default function AnalyticsPage() {
         <RoasTab data={adData} loading={adLoading} />
       ) : tab === "pl" ? (
         <PLTab data={plData} loading={plLoading} />
+      ) : tab === "turnover" ? (
+        <TurnoverTab data={turnoverData} loading={turnoverLoading} />
+      ) : tab === "forecast" ? (
+        <ForecastTab data={forecastData} loading={forecastLoading} />
       ) : tab === "ranking" ? (
         <RankingTab
           ranking={ranking}
@@ -577,6 +634,154 @@ function OverviewTab({ data, totalCategorySales }: { data: DashboardData; totalC
         </div>
       </div>
     </>
+  );
+}
+
+function TurnoverTab({ data, loading }: { data: TurnoverData | null; loading: boolean }) {
+  if (loading || !data) return <p className="text-gray-500">読み込み中...</p>;
+
+  return (
+    <div>
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <KpiCard label="平均回転率" value={`${data.summary.avgTurnover}回/年`} />
+        <KpiCard label="在庫金額" value={`¥${data.summary.totalInventoryValue.toLocaleString()}`} />
+        <KpiCard label="売上原価" value={`¥${data.summary.totalCogs.toLocaleString()}`} />
+        <KpiCard label="対象SKU" value={`${data.summary.productCount}`} />
+      </div>
+
+      {data.products.length > 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="px-4 py-3 font-medium">商品名</th>
+                <th className="px-4 py-3 font-medium">SKU</th>
+                <th className="px-4 py-3 font-medium">分類</th>
+                <th className="px-4 py-3 font-medium text-right">在庫</th>
+                <th className="px-4 py-3 font-medium text-right">販売数</th>
+                <th className="px-4 py-3 font-medium text-right">回転率</th>
+                <th className="px-4 py-3 font-medium text-right">在庫日数</th>
+                <th className="px-4 py-3 font-medium text-right">在庫金額</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.products.map((p) => (
+                <tr key={p.productId} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.sku}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                      p.productClass === "定番" ? "bg-blue-50 text-blue-700" :
+                      p.productClass === "セミ定番" ? "bg-purple-50 text-purple-700" :
+                      "bg-gray-100 text-gray-500"
+                    }`}>{p.productClass}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">{p.currentStock}</td>
+                  <td className="px-4 py-3 text-right">{p.salesQuantity}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={p.turnoverRate < 2 ? "text-red-600 font-medium" : p.turnoverRate > 6 ? "text-green-600" : ""}>
+                      {p.turnoverRate}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={p.daysOfSupply > 180 ? "text-red-600" : ""}>
+                      {p.daysOfSupply >= 999 ? "∞" : `${p.daysOfSupply}日`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-500">
+                    ¥{p.inventoryValue.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+          <p className="text-gray-500">データがありません</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ForecastTab({ data, loading }: { data: ForecastData | null; loading: boolean }) {
+  if (loading || !data) return <p className="text-gray-500">読み込み中...</p>;
+
+  const trendLabel: Record<string, { text: string; color: string }> = {
+    growing: { text: "成長トレンド", color: "text-green-600" },
+    declining: { text: "下降トレンド", color: "text-red-600" },
+    stable: { text: "安定", color: "text-blue-600" },
+    insufficient_data: { text: "データ不足", color: "text-gray-500" },
+  };
+
+  const trend = trendLabel[data.trend] || trendLabel.insufficient_data;
+  const allMonths = [
+    ...data.historical.map((h) => ({ ...h, isForecast: false })),
+    ...data.forecast,
+  ];
+
+  const maxRevenue = Math.max(...allMonths.map((m) => m.revenue), 1);
+
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <KpiCard label="トレンド" value={trend.text} highlight={data.trend === "declining" ? "red" : data.trend === "growing" ? "green" : undefined} />
+        <KpiCard label="成長率（6ヶ月）" value={`${data.growthRate > 0 ? "+" : ""}${data.growthRate}%`} highlight={data.growthRate < 0 ? "red" : "green"} />
+        <KpiCard label="月次変動" value={`¥${Math.abs(data.slope).toLocaleString()}/月`} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">売上推移 + 3ヶ月予測</h3>
+        <div className="space-y-2">
+          {allMonths.map((m) => {
+            const pct = (m.revenue / maxRevenue) * 100;
+            return (
+              <div key={m.month} className="flex items-center gap-3">
+                <span className={`text-xs w-16 ${m.isForecast ? "text-orange-500 font-medium" : "text-gray-500"}`}>
+                  {m.month}
+                </span>
+                <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+                  <div
+                    className={`h-full rounded ${m.isForecast ? "bg-orange-300" : "bg-blue-400"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className={`text-xs w-24 text-right ${m.isForecast ? "text-orange-600" : "text-gray-600"}`}>
+                  ¥{m.revenue.toLocaleString()}
+                </span>
+                {m.isForecast && (
+                  <span className="text-[10px] text-orange-400">予測</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {data.forecast.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="px-4 py-3 font-medium">月</th>
+                <th className="px-4 py-3 font-medium text-right">予測売上</th>
+                <th className="px-4 py-3 font-medium text-right">予測販売数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.forecast.map((f) => (
+                <tr key={f.month} className="border-b border-gray-50">
+                  <td className="px-4 py-3 font-medium text-orange-600">{f.month}</td>
+                  <td className="px-4 py-3 text-right">¥{f.revenue.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">{f.quantity}個</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 
