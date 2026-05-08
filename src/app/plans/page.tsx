@@ -441,6 +441,19 @@ export default function PlansPage() {
             >
               {saving ? "保存中..." : "下書き保存"}
             </button>
+            {existingPlans.length > 0 && (
+              <button
+                onClick={() =>
+                  window.open(
+                    `/api/proposals/export-pdf?season_id=${selectedSeasonId}`,
+                    "_blank"
+                  )
+                }
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+              >
+                企画書PDF出力
+              </button>
+            )}
           </div>
         </>
       )}
