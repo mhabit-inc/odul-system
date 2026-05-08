@@ -88,6 +88,41 @@ export function deadlineReminderNotification(
   });
 }
 
+export function reorderCriticalNotification(
+  alerts: Array<{
+    productName: string;
+    sku: string;
+    currentStock: number;
+    monthlyRate: number;
+    recommended: number;
+  }>
+) {
+  if (alerts.length === 0) return;
+
+  const lines = alerts
+    .slice(0, 15)
+    .map(
+      (a) =>
+        `- *${a.productName}* (${a.sku}) | 在庫${a.currentStock}個 | 月販${a.monthlyRate}個 | 推奨発注${a.recommended}個`
+    )
+    .join("\n");
+
+  const more = alerts.length > 15 ? `\n...他${alerts.length - 15}件` : "";
+
+  return sendSlackNotification({
+    text: `[リオーダー] ${alerts.length}件のcriticalアラート`,
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `:rotating_light: *リオーダーアラート (Critical)*\n${alerts.length}件の商品が要発注です:\n\n${lines}${more}`,
+        },
+      },
+    ],
+  });
+}
+
 export function weeklySummaryNotification(summary: {
   totalRevenue: number;
   totalQuantity: number;

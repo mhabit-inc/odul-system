@@ -1,4 +1,5 @@
 import { createAdminClient } from "./supabase";
+import { reorderCriticalNotification } from "./slack";
 
 const DEFAULT_LEAD_TIME_MONTHS = 3.5;
 const BUFFER_MONTHS = 1.5;
@@ -195,6 +196,30 @@ export async function calculateReorderAlerts(): Promise<CalcResult> {
         result.errors.push(`Alert batch ${i / BATCH_SIZE}: ${error.message}`);
       }
     }
+  }
+
+  if (result.critical > 0) {
+    const criticalAlerts = alerts.filter((a) => a.alert_level === "critical");
+    const criticalProductIds = criticalAlerts.map((a) => a.product_id);
+    const { data: criticalProducts } = await supabase
+      .from("products")
+      .select("id, name, name_en, sku")
+      .in("id", criticalProductIds);
+
+    const productMap = new Map((criticalProducts || []).map((p) => [p.id, p]));
+    const notification = reorderCriticalNotification(
+      criticalAlerts.map((a) => {
+        const p = productMap.get(a.product_id);
+        return {
+          productName: p?.name || p?.name_en || "不明",
+          sku: p?.sku || "",
+          currentStock: a.current_stock,
+          monthlyRate: a.monthly_sales_rate,
+          recommended: a.recommended_quantity,
+        };
+      })
+    );
+    if (notification) notification.catch(() => {});
   }
 
   return result;
