@@ -9,6 +9,7 @@ const navItems = [
   { href: "/products", label: "商品マスタ", icon: "◇" },
   { href: "/classifications", label: "商品分類", icon: "▦" },
   { href: "/production", label: "生産管理", icon: "▶" },
+  { href: "/inspections", label: "検品管理", icon: "✓" },
   { href: "/plans", label: "新作発注計画", icon: "☆" },
   { href: "/order-sheet", label: "発注シート出力", icon: "↓" },
   { href: "/seasons", label: "シーズン管理", icon: "◎" },
