@@ -45,6 +45,8 @@ export default function InventoryPage() {
   const [tab, setTab] = useState<"stock" | "history">("stock");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
 
   const fetchData = (filter?: string) => {
     setLoading(true);
@@ -98,6 +100,23 @@ export default function InventoryPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">在庫管理</h1>
           <p className="text-sm text-gray-500">在庫状況の確認と調整</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {syncMsg && <span className="text-xs text-green-600">{syncMsg}</span>}
+          <button
+            onClick={async () => {
+              setSyncing(true); setSyncMsg("");
+              const res = await fetch("/api/inventory/sync-openlogi", { method: "POST" });
+              const data = await res.json();
+              setSyncMsg(data.error ? `エラー: ${data.error}` : `${data.updated}件同期完了`);
+              setSyncing(false);
+              fetchData(stockFilter);
+            }}
+            disabled={syncing}
+            className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {syncing ? "同期中..." : "OpenLogi同期"}
+          </button>
         </div>
       </div>
 

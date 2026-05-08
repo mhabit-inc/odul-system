@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { calculateReorderAlerts } from "@/lib/reorder-calc";
+import { syncOpenLogiInventory } from "@/lib/openlogi";
 import { supabase } from "@/lib/supabase";
 import { deadlineReminderNotification } from "@/lib/slack";
 
@@ -10,6 +11,13 @@ export async function GET(request: Request) {
   }
 
   const results: Record<string, string> = {};
+
+  try {
+    const syncResult = await syncOpenLogiInventory();
+    results.openlogiSync = `${syncResult.updated}件更新`;
+  } catch (e) {
+    results.openlogiSync = `error: ${e}`;
+  }
 
   try {
     await calculateReorderAlerts();
