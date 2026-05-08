@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Product = {
@@ -20,6 +20,14 @@ type Supplier = {
 };
 
 export default function NewOrderPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl"><p className="text-gray-500">読み込み中...</p></div>}>
+      <NewOrderForm />
+    </Suspense>
+  );
+}
+
+function NewOrderForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedProductId = searchParams.get("product_id") || "";
