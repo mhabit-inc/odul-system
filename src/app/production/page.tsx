@@ -108,6 +108,12 @@ export default function ProductionPage() {
           <p className="text-sm text-gray-500">{orders.length}件の発注</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/production/new"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800"
+          >
+            + 新規発注
+          </Link>
           <select
             value={supplierFilter}
             onChange={(e) => setSupplierFilter(e.target.value)}
