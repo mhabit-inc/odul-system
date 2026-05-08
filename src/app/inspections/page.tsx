@@ -87,7 +87,9 @@ export default function InspectionsPage() {
                     className="border-b border-gray-50 hover:bg-gray-50"
                   >
                     <td className="px-4 py-3 font-medium text-gray-900">
-                      {ins.products.name}
+                      <Link href={`/inspections/${ins.id}`} className="hover:text-blue-600">
+                        {ins.products.name}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">
                       {ins.products.sku}
