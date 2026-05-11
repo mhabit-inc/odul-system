@@ -8,15 +8,19 @@ async function getProducts(params: {
   productClass?: string;
   category?: string;
   page?: number;
+  sort?: string;
+  order?: string;
 }) {
   const page = params.page || 1;
   const limit = 50;
   const offset = (page - 1) * limit;
 
+  const sortCol = params.sort || "created_at";
+  const sortAsc = params.order === "asc";
   let query = supabase
     .from("products")
     .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
+    .order(sortCol, { ascending: sortAsc })
     .range(offset, offset + limit - 1);
 
   if (params.productClass && params.productClass !== "all") {
@@ -58,6 +62,8 @@ export default async function ProductsPage({
     class?: string;
     category?: string;
     page?: string;
+    sort?: string;
+    order?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -68,6 +74,8 @@ export default async function ProductsPage({
       productClass: params.class,
       category: params.category,
       page,
+      sort: params.sort,
+      order: params.order,
     }),
     getCategories(),
   ]);
@@ -83,6 +91,18 @@ export default async function ProductsPage({
   ];
 
   const currentClass = params.class || "all";
+  const currentSort = params.sort || "created_at";
+  const currentOrder = params.order || "desc";
+
+  function sortUrl(col: string) {
+    const newOrder = currentSort === col && currentOrder === "desc" ? "asc" : "desc";
+    return buildUrl("/products", { ...params, sort: col, order: newOrder, page: undefined });
+  }
+
+  function sortIndicator(col: string) {
+    if (currentSort !== col) return "";
+    return currentOrder === "asc" ? " ↑" : " ↓";
+  }
 
   return (
     <div className="max-w-6xl">
@@ -149,13 +169,13 @@ export default async function ProductsPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">
-                <th className="px-4 py-3 font-medium">商品名</th>
-                <th className="px-4 py-3 font-medium">SKU</th>
+                <th className="px-4 py-3 font-medium"><Link href={sortUrl("name")} className="hover:text-gray-700">商品名{sortIndicator("name")}</Link></th>
+                <th className="px-4 py-3 font-medium"><Link href={sortUrl("sku")} className="hover:text-gray-700">SKU{sortIndicator("sku")}</Link></th>
                 <th className="px-4 py-3 font-medium">カテゴリー</th>
                 <th className="px-4 py-3 font-medium">分類</th>
-                <th className="px-4 py-3 font-medium">素材</th>
-                <th className="px-4 py-3 font-medium text-right">価格</th>
-                <th className="px-4 py-3 font-medium">発売日</th>
+                <th className="px-4 py-3 font-medium text-right"><Link href={sortUrl("current_stock")} className="hover:text-gray-700">在庫{sortIndicator("current_stock")}</Link></th>
+                <th className="px-4 py-3 font-medium text-right"><Link href={sortUrl("selling_price")} className="hover:text-gray-700">価格{sortIndicator("selling_price")}</Link></th>
+                <th className="px-4 py-3 font-medium"><Link href={sortUrl("launched_at")} className="hover:text-gray-700">発売日{sortIndicator("launched_at")}</Link></th>
               </tr>
             </thead>
             <tbody>
@@ -174,7 +194,11 @@ export default async function ProductsPage({
                   <td className="px-4 py-3">
                     <ClassBadge value={p.product_class} />
                   </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{p.material || "-"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={`font-medium ${(p.current_stock || 0) === 0 ? "text-red-600" : (p.current_stock || 0) <= 5 ? "text-yellow-600" : "text-gray-900"}`}>
+                      {p.current_stock ?? 0}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {p.selling_price
                       ? `\u00a5${Number(p.selling_price).toLocaleString()}`

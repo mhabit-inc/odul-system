@@ -34,11 +34,17 @@ type Summary = {
   lowStock: number;
 };
 
+type SortKey = "name" | "sku" | "stock" | "value" | "category";
+
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [stockFilter, setStockFilter] = useState<string>("");
+  const [classFilter, setClassFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortAsc, setSortAsc] = useState(true);
   const [adjusting, setAdjusting] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustReason, setAdjustReason] = useState("");
@@ -93,6 +99,58 @@ export default function InventoryPage() {
     setAdjustReason("");
     fetchData(stockFilter);
   };
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortKey(key);
+      setSortAsc(key === "name" || key === "sku" || key === "category");
+    }
+  }
+
+  const filteredProducts = products
+    .filter((p) => {
+      if (classFilter && p.product_class !== classFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.name_en || "").toLowerCase().includes(q) ||
+          p.sku.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const dir = sortAsc ? 1 : -1;
+      switch (sortKey) {
+        case "name":
+          return dir * (a.name || a.name_en || "").localeCompare(b.name || b.name_en || "");
+        case "sku":
+          return dir * a.sku.localeCompare(b.sku);
+        case "category":
+          return dir * (a.category || "").localeCompare(b.category || "");
+        case "stock":
+          return dir * ((a.current_stock || 0) - (b.current_stock || 0));
+        case "value": {
+          const va = (a.current_stock || 0) * Number(a.cost_price_jpy || a.selling_price || 0);
+          const vb = (b.current_stock || 0) * Number(b.cost_price_jpy || b.selling_price || 0);
+          return dir * (va - vb);
+        }
+        default:
+          return 0;
+      }
+    });
+
+  const SortHeader = ({ label, field, align }: { label: string; field: SortKey; align?: string }) => (
+    <th
+      className={`px-4 py-3 font-medium cursor-pointer hover:text-gray-700 select-none ${align || ""}`}
+      onClick={() => handleSort(field)}
+    >
+      {label} {sortKey === field ? (sortAsc ? "↑" : "↓") : ""}
+    </th>
+  );
 
   return (
     <div className="max-w-6xl">
@@ -155,7 +213,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <div className="flex rounded-lg border border-gray-200 overflow-hidden mr-4">
           <button
             onClick={() => setTab("stock")}
@@ -170,46 +228,68 @@ export default function InventoryPage() {
             取引履歴
           </button>
         </div>
-        {tab === "stock" && [{
-          value: "", label: "すべて" },
-          { value: "zero", label: "在庫切れ" },
-          { value: "low", label: "在庫少" },
-        ].map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setStockFilter(f.value)}
-            className={`px-3 py-1.5 rounded-lg text-sm ${
-              stockFilter === f.value
-                ? "bg-gray-900 text-white"
-                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        {tab === "stock" && (
+          <>
+            {[
+              { value: "", label: "すべて" },
+              { value: "zero", label: "在庫切れ" },
+              { value: "low", label: "在庫少" },
+            ].map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setStockFilter(f.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm ${
+                  stockFilter === f.value
+                    ? "bg-gray-900 text-white"
+                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white"
+            >
+              <option value="">分類: すべて</option>
+              {["定番", "セミ定番", "新作", "アーカイブ", "ノベルティ", "未分類"].map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="商品名・SKU検索..."
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm w-48"
+            />
+          </>
+        )}
       </div>
 
       {tab === "stock" ? (
         loading ? (
           <p className="text-gray-500">読み込み中...</p>
-        ) : products.length > 0 ? (
+        ) : filteredProducts.length > 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b bg-gray-50">
-                  <th className="px-4 py-3 font-medium">商品名</th>
-                  <th className="px-4 py-3 font-medium">SKU</th>
-                  <th className="px-4 py-3 font-medium">カテゴリー</th>
-                  <th className="px-4 py-3 font-medium text-right">在庫数</th>
-                  <th className="px-4 py-3 font-medium text-right">在庫金額</th>
+                  <SortHeader label="商品名" field="name" />
+                  <SortHeader label="SKU" field="sku" />
+                  <SortHeader label="カテゴリー" field="category" />
+                  <SortHeader label="在庫数" field="stock" align="text-right" />
+                  <SortHeader label="在庫金額" field="value" align="text-right" />
                   <th className="px-4 py-3 font-medium text-center">操作</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => {
+                {filteredProducts.map((p) => {
                   const stockValue =
                     (p.current_stock || 0) *
                     Number(p.cost_price_jpy || p.selling_price || 0);
+                  const isNegative = (p.current_stock || 0) < 0;
                   return (
                     <tr
                       key={p.id}
@@ -232,15 +312,22 @@ export default function InventoryPage() {
                       <td className="px-4 py-3 text-right">
                         <span
                           className={`font-medium ${
-                            (p.current_stock || 0) === 0
+                            isNegative
                               ? "text-red-600"
-                              : (p.current_stock || 0) <= 5
-                                ? "text-yellow-600"
-                                : "text-gray-900"
+                              : (p.current_stock || 0) === 0
+                                ? "text-red-600"
+                                : (p.current_stock || 0) <= 5
+                                  ? "text-yellow-600"
+                                  : "text-gray-900"
                           }`}
                         >
                           {p.current_stock ?? 0}
                         </span>
+                        {isNegative && (
+                          <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-medium rounded">
+                            要確認
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right text-gray-600">
                         ¥{stockValue.toLocaleString()}

@@ -300,6 +300,14 @@ function RoasTab({ data, loading }: { data: AdSummary | null; loading: boolean }
   const s = data.summary;
   return (
     <div>
+      <div className="flex justify-end mb-3">
+        <a
+          href="/import"
+          className="text-sm text-blue-600 hover:text-blue-800"
+        >
+          広告費CSVインポート →
+        </a>
+      </div>
       <div className="grid grid-cols-5 gap-3 mb-6">
         <KpiCard label="広告費" value={`¥${s.totalSpend.toLocaleString()}`} />
         <KpiCard label="広告売上" value={`¥${s.totalConvRevenue.toLocaleString()}`} />
@@ -638,7 +646,31 @@ function OverviewTab({ data, totalCategorySales }: { data: DashboardData; totalC
 }
 
 function TurnoverTab({ data, loading }: { data: TurnoverData | null; loading: boolean }) {
+  const [sortField, setSortField] = useState<string>("turnoverRate");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [classFilter, setClassFilter] = useState("");
+
   if (loading || !data) return <p className="text-gray-500">読み込み中...</p>;
+
+  function handleSort(field: string) {
+    if (sortField === field) setSortAsc(!sortAsc);
+    else { setSortField(field); setSortAsc(false); }
+  }
+
+  const sorted = [...data.products]
+    .filter((p) => !classFilter || p.productClass === classFilter)
+    .sort((a, b) => {
+      const dir = sortAsc ? 1 : -1;
+      const av = (a as Record<string, unknown>)[sortField] as number;
+      const bv = (b as Record<string, unknown>)[sortField] as number;
+      return dir * ((av || 0) - (bv || 0));
+    });
+
+  const SH = ({ label, field, align }: { label: string; field: string; align?: string }) => (
+    <th className={`px-4 py-3 font-medium cursor-pointer hover:text-gray-700 select-none ${align || ""}`} onClick={() => handleSort(field)}>
+      {label} {sortField === field ? (sortAsc ? "↑" : "↓") : ""}
+    </th>
+  );
 
   return (
     <div>
@@ -649,7 +681,15 @@ function TurnoverTab({ data, loading }: { data: TurnoverData | null; loading: bo
         <KpiCard label="対象SKU" value={`${data.summary.productCount}`} />
       </div>
 
-      {data.products.length > 0 ? (
+      <div className="flex gap-2 mb-4">
+        {["", "定番", "セミ定番", "新作"].map((c) => (
+          <button key={c} onClick={() => setClassFilter(c)}
+            className={`px-3 py-1.5 rounded-lg text-sm ${classFilter === c ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600"}`}
+          >{c || "すべて"}</button>
+        ))}
+      </div>
+
+      {sorted.length > 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -657,15 +697,15 @@ function TurnoverTab({ data, loading }: { data: TurnoverData | null; loading: bo
                 <th className="px-4 py-3 font-medium">商品名</th>
                 <th className="px-4 py-3 font-medium">SKU</th>
                 <th className="px-4 py-3 font-medium">分類</th>
-                <th className="px-4 py-3 font-medium text-right">在庫</th>
-                <th className="px-4 py-3 font-medium text-right">販売数</th>
-                <th className="px-4 py-3 font-medium text-right">回転率</th>
-                <th className="px-4 py-3 font-medium text-right">在庫日数</th>
-                <th className="px-4 py-3 font-medium text-right">在庫金額</th>
+                <SH label="在庫" field="currentStock" align="text-right" />
+                <SH label="販売数" field="salesQuantity" align="text-right" />
+                <SH label="回転率" field="turnoverRate" align="text-right" />
+                <SH label="在庫日数" field="daysOfSupply" align="text-right" />
+                <SH label="在庫金額" field="inventoryValue" align="text-right" />
               </tr>
             </thead>
             <tbody>
-              {data.products.map((p) => (
+              {sorted.map((p) => (
                 <tr key={p.productId} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
                   <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.sku}</td>

@@ -47,8 +47,8 @@ export default function SettingsPage() {
           href="/settings/thresholds"
           className="block bg-white rounded-xl border border-gray-200 p-5 hover:bg-gray-50"
         >
-          <h2 className="text-base font-semibold text-gray-900">分類閾値設定</h2>
-          <p className="text-sm text-gray-500 mt-1">定番・アーカイブの自動判定閾値を調整</p>
+          <h2 className="text-base font-semibold text-gray-900">分類ルール設定</h2>
+          <p className="text-sm text-gray-500 mt-1">定番・アーカイブの自動判定ルールを調整</p>
         </Link>
 
         <Link
@@ -100,6 +100,17 @@ export default function SettingsPage() {
               {sheetSyncing ? "同期中..." : "スプレッドシート同期"}
             </button>
             {sheetResult && <span className="text-sm text-green-600">{sheetResult}</span>}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-base font-semibold text-gray-900 mb-2">自動実行（CRON）</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            毎日21:00(UTC)にリオーダー再計算、毎週金曜にSlack週次サマリーが自動実行されます。
+          </p>
+          <div className="bg-gray-50 rounded-lg p-3 text-xs">
+            <p className="text-gray-500 mb-1">Vercel環境変数に以下を設定してください:</p>
+            <p className="font-mono text-gray-700">CRON_SECRET = <span className="select-all">8753038c0c9a285da827b0f1547cb816</span></p>
           </div>
         </div>
 

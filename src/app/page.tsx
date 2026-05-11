@@ -150,11 +150,14 @@ export default async function Dashboard() {
             一覧を見る →
           </Link>
         </div>
-        <div className="flex gap-4 mb-4">
+        <div className="flex gap-4 mb-3">
           <AlertBadge label="要リオーダー" count={alertSummary.critical} color="red" />
           <AlertBadge label="注意" count={alertSummary.warning} color="yellow" />
           <AlertBadge label="余裕あり" count={alertSummary.safe} color="green" />
         </div>
+        <p className="text-xs text-gray-400 mb-4">
+          要リオーダー: 在庫3ヶ月以内 / 注意: 3〜6ヶ月 / 余裕あり: 6ヶ月以上
+        </p>
         {criticalAlerts.length > 0 ? (
           <table className="w-full text-sm">
             <thead>

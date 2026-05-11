@@ -37,6 +37,7 @@ export default function SeasonsPage() {
     shooting_date: "",
     shooting_cost: "",
     uses_previous_creative: false,
+    concept_theme: "",
     notes: "",
   });
 
@@ -63,7 +64,7 @@ export default function SeasonsPage() {
           ? Number(formData.shooting_cost)
           : null,
         shooting_date: formData.shooting_date || null,
-        notes: formData.notes || null,
+        notes: [formData.concept_theme ? `[テーマ] ${formData.concept_theme}` : "", formData.notes].filter(Boolean).join("\n") || null,
       }),
     });
     if (res.ok) {
@@ -76,6 +77,7 @@ export default function SeasonsPage() {
         shooting_date: "",
         shooting_cost: "",
         uses_previous_creative: false,
+        concept_theme: "",
         notes: "",
       });
       fetchSeasons();
@@ -215,6 +217,20 @@ export default function SeasonsPage() {
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
               />
             </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                コンセプト・テーマ
+              </label>
+              <input
+                type="text"
+                value={formData.concept_theme}
+                onChange={(e) =>
+                  setFormData({ ...formData, concept_theme: e.target.value })
+                }
+                placeholder="例: Urban Elegance / 都市と自然の融合"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+              />
+            </div>
             <div className="col-span-2 flex items-center gap-2">
               <input
                 type="checkbox"
@@ -293,12 +309,19 @@ export default function SeasonsPage() {
                   key={s.id}
                   className="border-b border-gray-50 hover:bg-gray-50"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {s.name}
-                    {s.uses_previous_creative && (
-                      <span className="ml-2 text-xs text-gray-400">
-                        (流用)
-                      </span>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">
+                      {s.name}
+                      {s.uses_previous_creative && (
+                        <span className="ml-2 text-xs text-gray-400">
+                          (流用)
+                        </span>
+                      )}
+                    </div>
+                    {s.notes?.includes("[テーマ]") && (
+                      <div className="text-xs text-gray-400">
+                        {s.notes.split("\n").find((l: string) => l.startsWith("[テーマ]"))?.replace("[テーマ] ", "")}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{s.year}</td>

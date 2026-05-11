@@ -33,6 +33,8 @@ type PlanRow = {
   orderPerSize: number;
   sizeCount: number;
   launchDate: string;
+  unitPrice: number;
+  sellThrough: number;
 };
 
 type ExistingPlan = {
@@ -113,6 +115,8 @@ export default function PlansPage() {
             orderPerSize: cat.avg_order_per_size || 5,
             sizeCount: SIZE_COUNT,
             launchDate: existing?.launch_date || defaultLaunch,
+            unitPrice: cat.avg_unit_price || 13000,
+            sellThrough: cat.expected_sell_through_90d || 65,
           };
         })
     );
@@ -140,9 +144,12 @@ export default function PlansPage() {
   }
 
   function calcRevenue(row: PlanRow): number {
-    const price = row.category.avg_unit_price || 13000;
-    const sellThrough = (row.category.expected_sell_through_90d || 65) / 100;
-    return Math.round(calcQuantity(row) * price * sellThrough);
+    return Math.round(calcQuantity(row) * row.unitPrice * (row.sellThrough / 100));
+  }
+
+  function calcInventoryCost(row: PlanRow): number {
+    const costRate = 0.35;
+    return Math.round(calcQuantity(row) * row.unitPrice * costRate);
   }
 
   function updateRow(index: number, field: keyof PlanRow, value: number | string) {
@@ -157,6 +164,7 @@ export default function PlansPage() {
   const totalStyles = planRows.reduce((sum, r) => sum + r.styles, 0);
   const totalQuantity = planRows.reduce((sum, r) => sum + calcQuantity(r), 0);
   const totalRevenue = planRows.reduce((sum, r) => sum + calcRevenue(r), 0);
+  const totalCost = planRows.reduce((sum, r) => sum + calcInventoryCost(r), 0);
 
   const selectedSeason = seasons.find((s) => s.id === selectedSeasonId);
   const thursdays = selectedSeason
@@ -301,7 +309,7 @@ export default function PlansPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-6 gap-3">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">
                       型数{" "}
@@ -321,7 +329,7 @@ export default function PlansPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">
-                      1サイズ平均発注数
+                      1サイズ発注数
                     </label>
                     <input
                       type="number"
@@ -335,7 +343,7 @@ export default function PlansPage() {
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">
-                      サイズ展開数
+                      サイズ数
                     </label>
                     <input
                       type="number"
@@ -343,6 +351,36 @@ export default function PlansPage() {
                       value={row.sizeCount}
                       onChange={(e) =>
                         updateRow(i, "sizeCount", Number(e.target.value))
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      平均単価(¥)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={row.unitPrice}
+                      onChange={(e) =>
+                        updateRow(i, "unitPrice", Number(e.target.value))
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      消化率(%)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={row.sellThrough}
+                      onChange={(e) =>
+                        updateRow(i, "sellThrough", Number(e.target.value))
                       }
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
                     />
@@ -370,7 +408,7 @@ export default function PlansPage() {
 
                 <div className="mt-3 flex items-center gap-6 text-sm">
                   <span className="text-gray-500">
-                    発注数合計:{" "}
+                    発注数:{" "}
                     <span className="font-semibold text-gray-900">
                       {calcQuantity(row).toLocaleString()}個
                     </span>
@@ -387,18 +425,9 @@ export default function PlansPage() {
                     </span>
                   </span>
                   <span className="text-gray-500">
-                    消化率目安:{" "}
-                    <span className="font-semibold text-gray-900">
-                      {row.category.expected_sell_through_90d || 65}%
-                    </span>
-                  </span>
-                  <span className="text-gray-500">
-                    平均単価:{" "}
-                    <span className="text-gray-700">
-                      ¥
-                      {(
-                        row.category.avg_unit_price || 13000
-                      ).toLocaleString()}
+                    在庫原価:{" "}
+                    <span className="font-semibold text-orange-600">
+                      ¥{calcInventoryCost(row).toLocaleString()}
                     </span>
                   </span>
                 </div>
@@ -424,6 +453,12 @@ export default function PlansPage() {
                   ¥{totalRevenue.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-300">合計期待売上</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-orange-300">
+                  ¥{totalCost.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-300">在庫原価（目安）</p>
               </div>
             </div>
           </div>

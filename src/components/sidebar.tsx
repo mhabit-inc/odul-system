@@ -65,56 +65,87 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   function toggleGroup(label: string) {
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-56 bg-white border-r border-gray-200 flex flex-col">
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-lg font-bold text-gray-900">ödül</h1>
-        <p className="text-xs text-gray-500">MD業務システム</p>
-      </div>
-      <nav className="flex-1 p-2 overflow-y-auto">
-        {navGroups.map((group) => (
-          <div key={group.label || "_top"} className="mb-1">
-            {group.label && (
-              <button
-                onClick={() => toggleGroup(group.label)}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600"
-              >
-                {group.label}
-                <span className="text-[10px]">{collapsed[group.label] ? "+" : "−"}</span>
-              </button>
-            )}
-            {!collapsed[group.label] &&
-              group.items.map((item) => {
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      isActive
-                        ? "bg-gray-900 text-white"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    <span className="text-sm w-4 text-center">{item.icon}</span>
-                    {item.label}
-                  </Link>
-                );
-              })}
+    <>
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-3 left-3 z-50 p-2 bg-white border border-gray-200 rounded-lg shadow-sm lg:hidden"
+        aria-label="メニューを開く"
+      >
+        <span className="text-lg">☰</span>
+      </button>
+
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-0 h-full w-56 bg-white border-r border-gray-200 flex flex-col z-50 transition-transform lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">ödül</h1>
+            <p className="text-xs text-gray-500">MD業務システム</p>
           </div>
-        ))}
-      </nav>
-      <div className="p-3 border-t border-gray-200 text-[10px] text-gray-400">
-        ödül MD System v1.0
-      </div>
-    </aside>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+        <nav className="flex-1 p-2 overflow-y-auto">
+          {navGroups.map((group) => (
+            <div key={group.label || "_top"} className="mb-1">
+              {group.label && (
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600"
+                >
+                  {group.label}
+                  <span className="text-[10px]">{collapsed[group.label] ? "+" : "−"}</span>
+                </button>
+              )}
+              {!collapsed[group.label] &&
+                group.items.map((item) => {
+                  const isActive =
+                    item.href === "/"
+                      ? pathname === "/"
+                      : pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        isActive
+                          ? "bg-gray-900 text-white"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <span className="text-sm w-4 text-center">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
+            </div>
+          ))}
+        </nav>
+        <div className="p-3 border-t border-gray-200 text-[10px] text-gray-400">
+          ödül MD System v1.0
+        </div>
+      </aside>
+    </>
   );
 }
