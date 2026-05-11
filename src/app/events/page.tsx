@@ -24,8 +24,9 @@ export default function EventsPage() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
+  const emptyForm = {
     name: "",
     type: "seasonal",
     start_date: "",
@@ -33,7 +34,8 @@ export default function EventsPage() {
     sales_coefficient: "1.0",
     target_amount: "",
     notes: "",
-  });
+  };
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
     fetchEvents();
@@ -46,35 +48,58 @@ export default function EventsPage() {
     setLoading(false);
   }
 
+  function startEdit(ev: Event) {
+    setEditId(ev.id);
+    setFormData({
+      name: ev.name,
+      type: ev.type,
+      start_date: ev.start_date,
+      end_date: ev.end_date,
+      sales_coefficient: String(ev.sales_coefficient),
+      target_amount: ev.target_amount ? String(ev.target_amount) : "",
+      notes: ev.notes || "",
+    });
+    setShowForm(true);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...formData,
-        sales_coefficient: Number(formData.sales_coefficient),
-        target_amount: formData.target_amount
-          ? Number(formData.target_amount)
-          : null,
-        notes: formData.notes || null,
-      }),
-    });
-    if (res.ok) {
-      setShowForm(false);
-      setFormData({
-        name: "",
-        type: "seasonal",
-        start_date: "",
-        end_date: "",
-        sales_coefficient: "1.0",
-        target_amount: "",
-        notes: "",
+    const payload = {
+      ...formData,
+      sales_coefficient: Number(formData.sales_coefficient),
+      target_amount: formData.target_amount ? Number(formData.target_amount) : null,
+      notes: formData.notes || null,
+    };
+
+    if (editId) {
+      await fetch("/api/events", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editId, ...payload }),
       });
-      fetchEvents();
+    } else {
+      await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     }
+    setShowForm(false);
+    setEditId(null);
+    setFormData(emptyForm);
+    fetchEvents();
     setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("このイベントを削除しますか？")) return;
+    await fetch("/api/events", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    fetchEvents();
   }
 
   function getTypeLabel(type: string) {
@@ -118,7 +143,7 @@ export default function EventsPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); if (showForm) { setEditId(null); setFormData(emptyForm); } }}
           className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800"
         >
           {showForm ? "キャンセル" : "+ 新規イベント"}
@@ -130,7 +155,7 @@ export default function EventsPage() {
           onSubmit={handleSubmit}
           className="bg-white rounded-xl border border-gray-200 p-6 mb-6"
         >
-          <h2 className="text-lg font-semibold mb-4">新規イベント登録</h2>
+          <h2 className="text-lg font-semibold mb-4">{editId ? "イベント編集" : "新規イベント登録"}</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -248,7 +273,7 @@ export default function EventsPage() {
               disabled={saving}
               className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
             >
-              {saving ? "保存中..." : "登録する"}
+              {saving ? "保存中..." : editId ? "更新する" : "登録する"}
             </button>
           </div>
         </form>
@@ -265,6 +290,7 @@ export default function EventsPage() {
                 <th className="px-4 py-3 font-medium text-right">売上係数</th>
                 <th className="px-4 py-3 font-medium text-right">売上目標</th>
                 <th className="px-4 py-3 font-medium">状態</th>
+                <th className="px-4 py-3 font-medium text-center">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -315,6 +341,12 @@ export default function EventsPage() {
                     ) : (
                       <span className="text-xs text-gray-400">終了</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => startEdit(ev)} className="px-2 py-1 border border-gray-200 rounded text-xs text-gray-600 hover:bg-gray-50">編集</button>
+                      <button onClick={() => handleDelete(ev.id)} className="px-2 py-1 border border-red-200 rounded text-xs text-red-500 hover:bg-red-50">削除</button>
+                    </div>
                   </td>
                 </tr>
               ))}

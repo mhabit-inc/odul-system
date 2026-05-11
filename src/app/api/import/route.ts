@@ -28,11 +28,11 @@ export async function POST(request: Request) {
 }
 
 async function importSales(headers: string[], dataLines: string[]) {
-  const skuIdx = findIdx(headers, ["sku", "商品コード", "product_code"]);
-  const qtyIdx = findIdx(headers, ["quantity", "数量", "qty"]);
-  const revenueIdx = findIdx(headers, ["revenue", "売上", "売上金額", "amount"]);
-  const dateIdx = findIdx(headers, ["date", "sold_at", "日付", "販売日"]);
-  const channelIdx = findIdx(headers, ["channel", "チャネル", "販売チャネル"]);
+  const skuIdx = findIdx(headers, ["sku", "商品コード", "product_code", "product variant sku", "variant sku"]);
+  const qtyIdx = findIdx(headers, ["quantity", "数量", "qty", "quantity ordered", "net quantity"]);
+  const revenueIdx = findIdx(headers, ["revenue", "売上", "売上金額", "amount", "total sales", "gross sales"]);
+  const dateIdx = findIdx(headers, ["date", "sold_at", "日付", "販売日", "day"]);
+  const channelIdx = findIdx(headers, ["channel", "チャネル", "販売チャネル", "sales channel"]);
 
   if (skuIdx < 0 || qtyIdx < 0 || revenueIdx < 0) {
     return NextResponse.json({

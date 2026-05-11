@@ -1,10 +1,21 @@
 import React from "react";
+import path from "path";
 import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
 
 Font.registerHyphenationCallback((word) => [word]);
 
+const fontDir = path.join(process.cwd(), "public", "fonts");
+
+Font.register({
+  family: "NotoSansJP",
+  fonts: [
+    { src: path.join(fontDir, "NotoSansJP-Regular.ttf"), fontWeight: "normal" },
+    { src: path.join(fontDir, "NotoSansJP-Bold.ttf"), fontWeight: "bold" },
+  ],
+});
+
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
+  page: { padding: 40, fontSize: 10, fontFamily: "NotoSansJP" },
   header: { marginBottom: 20, borderBottom: "1 solid #333", paddingBottom: 10 },
   title: { fontSize: 18, fontWeight: "bold", marginBottom: 4 },
   meta: { fontSize: 9, color: "#666", marginBottom: 2 },
@@ -29,10 +40,10 @@ const styles = StyleSheet.create({
 });
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  review: "Review",
-  approved: "Approved",
-  archived: "Archived",
+  draft: "下書き",
+  review: "レビュー中",
+  approved: "承認済",
+  archived: "アーカイブ",
 };
 
 type Props = {

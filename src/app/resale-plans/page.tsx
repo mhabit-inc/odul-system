@@ -78,7 +78,7 @@ export default function ResalePlansPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         product_id: form.product_id,
-        planned_month: form.planned_month,
+        planned_month: form.planned_month.length === 7 ? form.planned_month + "-01" : form.planned_month,
         order_deadline: form.order_deadline || null,
         variation_notes: form.variation_notes || null,
         quantity_override: form.quantity_override ? Number(form.quantity_override) : null,
@@ -149,7 +149,7 @@ export default function ResalePlansPage() {
               <input
                 type="month"
                 value={form.planned_month}
-                onChange={(e) => setForm({ ...form, planned_month: e.target.value + "-01" })}
+                onChange={(e) => setForm({ ...form, planned_month: e.target.value })}
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
               />
             </div>

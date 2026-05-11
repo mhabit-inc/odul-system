@@ -57,13 +57,11 @@ export default function OrderDetailPage({
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchData = () => {
-    fetch(`/api/orders/${id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      });
+  const fetchData = async () => {
+    const res = await fetch(`/api/orders/${id}`);
+    const d = await res.json();
+    setData(d);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -77,20 +75,22 @@ export default function OrderDetailPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
-    fetchData();
+    await fetchData();
     setSubmitting(false);
   };
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     setSubmitting(true);
-    await fetch(`/api/orders/${id}/comments`, {
+    const res = await fetch(`/api/orders/${id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ comment: newComment }),
     });
-    setNewComment("");
-    fetchData();
+    if (res.ok) {
+      setNewComment("");
+      await fetchData();
+    }
     setSubmitting(false);
   };
 

@@ -81,7 +81,8 @@ async function getOrderStatus() {
 async function getStockSummary() {
   const { data } = await supabase
     .from("products")
-    .select("current_stock, cost_price_jpy, selling_price");
+    .select("current_stock, cost_price_jpy, selling_price, product_class")
+    .not("product_class", "eq", "アーカイブ");
 
   const products = data ?? [];
   const totalStock = products.reduce((s, p) => s + (p.current_stock || 0), 0);
