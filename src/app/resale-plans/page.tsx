@@ -19,8 +19,11 @@ type ResalePlan = {
     category: string;
     product_class: string;
     current_stock: number;
+    selling_price: number;
   };
   seasons: { name: string; year: number } | null;
+  monthly_sales_rate?: number;
+  suggested_quantity?: number;
 };
 
 type Product = {
@@ -203,6 +206,8 @@ export default function ResalePlansPage() {
                 <th className="px-4 py-3 font-medium">再販月</th>
                 <th className="px-4 py-3 font-medium">発注期限</th>
                 <th className="px-4 py-3 font-medium text-right">在庫</th>
+                <th className="px-4 py-3 font-medium text-right">月販</th>
+                <th className="px-4 py-3 font-medium text-right">推奨数</th>
                 <th className="px-4 py-3 font-medium">メモ</th>
                 <th className="px-4 py-3 font-medium">ステータス</th>
               </tr>
@@ -222,6 +227,14 @@ export default function ResalePlansPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">{p.products.current_stock}</td>
+                  <td className="px-4 py-3 text-right text-gray-500">{p.monthly_sales_rate || "-"}</td>
+                  <td className="px-4 py-3 text-right">
+                    {p.quantity_override ? (
+                      <span className="font-medium text-gray-900">{p.quantity_override}</span>
+                    ) : p.suggested_quantity ? (
+                      <span className="text-blue-600 font-medium">{p.suggested_quantity}</span>
+                    ) : "-"}
+                  </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{p.variation_notes || "-"}</td>
                   <td className="px-4 py-3">
                     <select

@@ -42,17 +42,20 @@ async function getPendingClassifications() {
 async function getProductStats() {
   const { data } = await supabase
     .from("products")
-    .select("product_class");
+    .select("product_class, current_stock");
 
   const classes = data ?? [];
   const count = (cls: string) => classes.filter((p) => p.product_class === cls).length;
+  const archives = classes.filter((p) => p.product_class === "アーカイブ");
 
   return {
     total: classes.length,
     staple: count("定番"),
     semiStaple: count("セミ定番"),
     newItem: count("新作"),
-    archive: count("アーカイブ"),
+    archive: archives.length,
+    archiveWithStock: archives.filter((p) => (p.current_stock || 0) > 0).length,
+    archiveNoStock: archives.filter((p) => (p.current_stock || 0) <= 0).length,
     novelty: count("ノベルティ"),
     unclassified: count("未分類"),
   };
@@ -134,11 +137,12 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-3 sm:grid-cols-7 gap-3 mb-6">
         <StatCard label="定番" value={stats.staple} color="blue" />
         <StatCard label="セミ定番" value={stats.semiStaple} color="purple" />
         <StatCard label="新作" value={stats.newItem} color="orange" />
-        <StatCard label="アーカイブ" value={stats.archive} color="gray" />
+        <StatCard label="アーカイブ(在庫有)" value={stats.archiveWithStock} color="gray" />
+        <StatCard label="アーカイブ(在庫無)" value={stats.archiveNoStock} color="gray" />
         <StatCard label="ノベルティ" value={stats.novelty} color="pink" />
         <StatCard label="未分類" value={stats.unclassified} color="gray" />
       </div>

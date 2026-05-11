@@ -4,12 +4,28 @@ import { NextResponse } from "next/server";
 export async function GET() {
   const { data, error } = await supabase
     .from("resale_plans")
-    .select("*, products(name, name_en, sku, category, product_class, current_stock), seasons(name, year)")
+    .select("*, products(name, name_en, sku, category, product_class, current_stock, selling_price), seasons(name, year)")
     .order("planned_month", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  const productIds = [...new Set((data || []).map((p) => p.product_id))];
+  if (productIds.length > 0) {
+    const { data: alerts } = await supabase
+      .from("reorder_alerts")
+      .select("product_id, monthly_sales_rate, recommended_quantity")
+      .in("product_id", productIds);
+
+    const alertMap = new Map((alerts || []).map((a) => [a.product_id, a]));
+    for (const plan of data || []) {
+      const alert = alertMap.get(plan.product_id);
+      plan.monthly_sales_rate = alert?.monthly_sales_rate || 0;
+      plan.suggested_quantity = alert?.recommended_quantity || 0;
+    }
+  }
+
   return NextResponse.json(data);
 }
 

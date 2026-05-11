@@ -9,24 +9,44 @@ function escCsv(val: unknown): string {
   return s;
 }
 
-export async function GET() {
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .order("sku");
+const ALL_COLUMNS: { key: string; label: string }[] = [
+  { key: "sku", label: "SKU" },
+  { key: "name", label: "商品名" },
+  { key: "name_en", label: "商品名(EN)" },
+  { key: "category", label: "カテゴリー" },
+  { key: "product_class", label: "分類" },
+  { key: "material", label: "素材" },
+  { key: "collection_name", label: "コレクション" },
+  { key: "selling_price", label: "販売価格" },
+  { key: "cost_price_jpy", label: "原価(JPY)" },
+  { key: "current_stock", label: "現在庫" },
+  { key: "vendor", label: "Vendor" },
+  { key: "launched_at", label: "発売日" },
+];
 
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const colsParam = url.searchParams.get("cols");
+  const classFilter = url.searchParams.get("class");
+
+  const selectedKeys = colsParam
+    ? colsParam.split(",").filter((k) => ALL_COLUMNS.some((c) => c.key === k))
+    : ALL_COLUMNS.map((c) => c.key);
+
+  const columns = ALL_COLUMNS.filter((c) => selectedKeys.includes(c.key));
+
+  let query = supabase.from("products").select("*").order("sku");
+  if (classFilter) {
+    query = query.eq("product_class", classFilter);
+  }
+
+  const { data } = await query;
   const products = data || [];
-  const headers = [
-    "SKU", "商品名", "商品名(EN)", "カテゴリー", "分類",
-    "素材", "コレクション", "販売価格", "原価(JPY)", "現在庫",
-    "Vendor", "発売日",
-  ];
 
-  const rows = products.map((p) => [
-    p.sku, p.name, p.name_en, p.category, p.product_class,
-    p.material, p.collection_name, p.selling_price, p.cost_price_jpy,
-    p.current_stock, p.vendor, p.launched_at,
-  ].map(escCsv).join(","));
+  const headers = columns.map((c) => c.label);
+  const rows = products.map((p) =>
+    columns.map((c) => escCsv((p as Record<string, unknown>)[c.key])).join(",")
+  );
 
   const csv = "\uFEFF" + [headers.join(","), ...rows].join("\n");
 
