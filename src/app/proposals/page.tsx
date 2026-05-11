@@ -24,6 +24,13 @@ type Proposal = {
   seasons: { name: string; year: number } | null;
 };
 
+type ProposalImage = {
+  name: string;
+  url: string;
+  size: number;
+  created_at: string;
+};
+
 type Season = { id: string; name: string; year: number };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -54,6 +61,8 @@ export default function ProposalsPage() {
     content: {} as Record<string, string>,
   });
   const [saving, setSaving] = useState(false);
+  const [images, setImages] = useState<ProposalImage[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -91,6 +100,33 @@ export default function ProposalsPage() {
     });
     setEditId(p.id);
     setView("edit");
+    fetch(`/api/proposals/images?proposal_id=${p.id}`)
+      .then((r) => r.json())
+      .then((d) => setImages(Array.isArray(d) ? d : []));
+  }
+
+  async function handleImageUpload(file: File) {
+    if (!editId) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("proposal_id", editId);
+    const res = await fetch("/api/proposals/images", { method: "POST", body: fd });
+    if (res.ok) {
+      const img = await res.json();
+      setImages((prev) => [...prev, img]);
+    }
+    setUploading(false);
+  }
+
+  async function handleImageDelete(name: string) {
+    if (!editId) return;
+    await fetch("/api/proposals/images", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proposal_id: editId, name }),
+    });
+    setImages((prev) => prev.filter((i) => i.name !== name));
   }
 
   async function handleSave() {
@@ -102,15 +138,20 @@ export default function ProposalsPage() {
         body: JSON.stringify({ id: editId, title: form.title, content: form.content, season_id: form.season_id || null }),
       });
     } else {
-      await fetch("/api/proposals", {
+      const res = await fetch("/api/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+      if (res.ok) {
+        const created = await res.json();
+        setEditId(created.id);
+        setView("edit");
+      }
     }
     const data = await fetch("/api/proposals").then((r) => r.json());
     setProposals(Array.isArray(data) ? data : []);
-    setView("list");
+    if (editId) setView("list");
     setSaving(false);
   }
 
@@ -203,6 +244,45 @@ export default function ProposalsPage() {
                   />
                 </div>
               ))}
+            </div>
+          )}
+
+          {editId && (
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">画像</label>
+              <div className="grid grid-cols-4 gap-3 mb-3">
+                {images.map((img) => (
+                  <div key={img.name} className="relative group">
+                    <img
+                      src={img.url}
+                      alt={img.name}
+                      className="w-full h-28 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      onClick={() => handleImageDelete(img.name)}
+                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <label className={`flex flex-col items-center justify-center h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 ${uploading ? "opacity-50" : ""}`}>
+                  <span className="text-2xl text-gray-400">+</span>
+                  <span className="text-xs text-gray-400 mt-1">{uploading ? "アップロード中..." : "画像を追加"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-400">JPEG, PNG, WebP (最大5MB)</p>
             </div>
           )}
 
