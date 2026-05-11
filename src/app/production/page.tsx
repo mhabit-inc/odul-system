@@ -56,6 +56,8 @@ export default function ProductionPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [view, setView] = useState<"kanban" | "timeline">("kanban");
   const [supplierFilter, setSupplierFilter] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
 
   const fetchOrders = useCallback(async () => {
     let url = "/api/orders";
@@ -120,6 +122,29 @@ export default function ProductionPage() {
           <p className="text-sm text-gray-500">{orders.length}件の発注</p>
         </div>
         <div className="flex items-center gap-3">
+          {importMsg && <span className="text-xs text-green-600">{importMsg}</span>}
+          <label className={`px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 cursor-pointer ${importing ? "opacity-50" : ""}`}>
+            {importing ? "インポート中..." : "CSVインポート"}
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              disabled={importing}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setImporting(true); setImportMsg("");
+                const fd = new FormData();
+                fd.append("file", file);
+                const res = await fetch("/api/orders/import-csv", { method: "POST", body: fd });
+                const data = await res.json();
+                setImportMsg(data.error ? `エラー: ${data.error}` : `${data.created}件インポート完了`);
+                setImporting(false);
+                e.target.value = "";
+                fetchOrders();
+              }}
+            />
+          </label>
           <Link
             href="/production/new"
             className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800"

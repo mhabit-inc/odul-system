@@ -21,14 +21,20 @@ type Inspection = {
 export default function InspectionsPage() {
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
 
-  useEffect(() => {
+  const fetchInspections = () => {
     fetch("/api/inspections")
       .then((r) => r.json())
       .then((data) => {
         setInspections(Array.isArray(data) ? data : []);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchInspections();
   }, []);
 
   if (loading) {
@@ -49,12 +55,37 @@ export default function InspectionsPage() {
             {inspections.length}件の検品記録
           </p>
         </div>
-        <Link
-          href="/inspections/new"
-          className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800"
-        >
-          + 検品登録
-        </Link>
+        <div className="flex items-center gap-3">
+          {importMsg && <span className="text-xs text-green-600">{importMsg}</span>}
+          <label className={`px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 cursor-pointer ${importing ? "opacity-50" : ""}`}>
+            {importing ? "インポート中..." : "CSVインポート"}
+            <input
+              type="file"
+              accept=".csv"
+              className="hidden"
+              disabled={importing}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setImporting(true); setImportMsg("");
+                const fd = new FormData();
+                fd.append("file", file);
+                const res = await fetch("/api/inspections/import-csv", { method: "POST", body: fd });
+                const data = await res.json();
+                setImportMsg(data.error ? `エラー: ${data.error}` : `${data.created}件インポート完了`);
+                setImporting(false);
+                e.target.value = "";
+                fetchInspections();
+              }}
+            />
+          </label>
+          <Link
+            href="/inspections/new"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800"
+          >
+            + 検品登録
+          </Link>
+        </div>
       </div>
 
       {inspections.length > 0 ? (
